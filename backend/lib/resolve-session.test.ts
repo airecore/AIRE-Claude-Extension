@@ -18,6 +18,11 @@ describe('resolveSessionState', () => {
     expect(resolveSessionState('bob@acme.com', member, ORGS)).toEqual({ state: 'pending', orgId: 'org-1' })
   })
 
+  it('returns invited for an admin-added row, even at a public domain -- the person accepts, not the admin', () => {
+    const member = { orgId: 'org-1', email: 'frank@outlook.com', role: 'member' as const, status: 'invited' as const }
+    expect(resolveSessionState('frank@outlook.com', member, ORGS)).toEqual({ state: 'invited', orgId: 'org-1' })
+  })
+
   it('returns pending for a new email matching an existing non-public org domain', () => {
     expect(resolveSessionState('carol@acme.com', null, ORGS)).toEqual({ state: 'pending', orgId: 'org-1' })
   })

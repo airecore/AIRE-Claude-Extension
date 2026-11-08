@@ -25,6 +25,9 @@ export interface OrgScenario {
   members?: unknown[]
   analytics?: unknown
   usageSnapshots?: unknown[]
+  /** Returned by POST /api/org-session { action: 'accept-invite' }; after
+   * that, plain org-session calls return it too (the invite is accepted). */
+  acceptedSession?: unknown
 }
 
 const FAR_FUTURE = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
@@ -49,8 +52,13 @@ export async function mockClerkAndBackend(page: Page, scenario: OrgScenario): Pr
         return route.fulfill({
           json: { sessionToken: 'mock-session-token', email: scenario.email, expiresAt: FAR_FUTURE },
         })
-      case '/api/org-session':
+      case '/api/org-session': {
+        const body = route.request().postData()
+        if (body && body.includes('accept-invite') && scenario.acceptedSession) {
+          scenario.orgSession = scenario.acceptedSession
+        }
         return route.fulfill({ json: scenario.orgSession })
+      }
       case '/api/org-prompts':
         return route.fulfill({ json: scenario.orgPrompts ?? { org: null, tabs: [], prompts: [] } })
       case '/api/org-members':

@@ -60,12 +60,37 @@ test('signing in as a director shows shared prompts, roster, and analytics', asy
   await page.getByRole('button', { name: 'Manage Organisation' }).click()
   const pendingRow = page.getByRole('listitem').filter({ hasText: 'newperson@acme.test' })
   await expect(pendingRow).toBeVisible()
-  await expect(pendingRow.getByText('Pending')).toBeVisible()
+  await expect(pendingRow.getByText('Wants to join')).toBeVisible()
+  await expect(pendingRow.getByRole('button', { name: 'Approve' })).toBeVisible()
   // Appears twice by design here: once in the prompt-management list,
   // once in the Top prompts analytics list -- both are real, so just
   // confirm the data made it to the screen at all.
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toHaveCount(2)
   await expect(page.getByText('4', { exact: true })).toBeVisible() // the Prompt runs stat tile
+})
+
+test('typing in Add member survives Manage Organisation finishing its background load', async ({ context }) => {
+  const page = await openMockedSidepanel(context, {
+    email: 'director@acme.test',
+    orgSession: { state: 'active', org: { id: 'org-1', name: 'Acme Inc' }, role: 'director' },
+    members: [{ email: 'director@acme.test', role: 'director', status: 'active', createdAt: new Date().toISOString() }],
+  })
+  // Hold analytics back so the panel redraws AFTER the user starts typing --
+  // the redraw used to replace the input, wiping text and Chrome's autofill.
+  await page.route('**/api/org-analytics', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500))
+    await route.fulfill({ json: { topPrompts: [], perMember: [], dailyRuns: [] } })
+  })
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Manage Organisation' }).click()
+
+  const input = page.getByPlaceholder('teammate@company.com')
+  await input.click()
+  await input.pressSequentially('new@acme')
+  await expect(page.getByText('Prompt runs')).toBeVisible({ timeout: 5000 }) // analytics landed + redrew
+  await expect(input).toHaveValue('new@acme')
+  await expect(input).toBeFocused()
 })
 
 test('a plain member sees the Team section but not Manage Organisation, and can leave', async ({ context }) => {
@@ -101,4 +126,29 @@ test('a pending invitee sees a waiting message and can cancel', async ({ context
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByText('Waiting for approval from Acme Inc.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cancel request' })).toBeVisible()
+})
+
+test('an invited person sees who invited them and can accept, landing as a member', async ({ context }) => {
+  const page = await openMockedSidepanel(context, {
+    email: 'new@outlook.com',
+    orgSession: { state: 'invited', org: { id: 'org-1', name: 'Acme Inc' }, invitedBy: 'director@acme.test' },
+    acceptedSession: { state: 'active', org: { id: 'org-1', name: 'Acme Inc' }, role: 'member' },
+    orgPrompts: {
+      org: { name: 'Acme Inc' },
+      tabs: [{ id: 'tab-1', name: 'General', emoji: null, sort_order: 0 }],
+      prompts: [{ id: 'p-1', name: 'Shared prompt', prompt_text: 'Hi', type: 'prompt', tab_id: 'tab-1', sort_order: 0 }],
+    },
+  })
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByText('director@acme.test invited you to join Acme Inc.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Accept invite' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Decline' })).toBeVisible()
+
+  // The list view shows the invite card; nothing shared is visible yet.
+  await page.getByRole('button', { name: /back/i }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Accept', exact: true }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Accept', exact: true })).toHaveCount(0)
 })

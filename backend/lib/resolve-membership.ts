@@ -8,7 +8,7 @@ export interface ActiveMembership {
 }
 
 export interface AnyMembership extends ActiveMembership {
-  status: 'pending' | 'active'
+  status: 'pending' | 'active' | 'invited'
 }
 
 // The single place every endpoint decides "which organisation does this
@@ -56,6 +56,6 @@ export async function resolveAnyMembership(sql: Sql, email: string): Promise<Any
       (status = 'active') DESC,
       created_at ASC
     LIMIT 1
-  `) as { org_id: string; role: 'director' | 'member'; status: 'pending' | 'active' }[]
+  `) as { org_id: string; role: 'director' | 'member'; status: 'pending' | 'active' | 'invited' }[]
   return rows[0] ? { orgId: rows[0].org_id, role: rows[0].role, status: rows[0].status } : null
 }

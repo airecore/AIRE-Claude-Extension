@@ -3,7 +3,7 @@ import { API_BASE_URL } from './org-prompts'
 export interface OrgMember {
   email: string
   role: 'director' | 'member'
-  status: 'pending' | 'active'
+  status: 'pending' | 'active' | 'invited'
   createdAt: string
 }
 
@@ -19,7 +19,7 @@ function parseMember(entry: unknown): OrgMember | null {
   const createdAt = entry.createdAt
   if (typeof email !== 'string' || typeof createdAt !== 'string') return null
   if (role !== 'director' && role !== 'member') return null
-  if (status !== 'pending' && status !== 'active') return null
+  if (status !== 'pending' && status !== 'active' && status !== 'invited') return null
   return { email, role, status, createdAt }
 }
 

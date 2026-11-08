@@ -61,17 +61,18 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     const targetEmail = body.email.trim()
 
     if (body.action === 'add') {
-      // Added as `pending`, then approved. A director adding an arbitrary
-      // address must not be able to flip a stranger straight to `active`
-      // (that would expose the stranger's reported usage / run counts to
-      // this org the moment they first sign in). DO NOTHING on conflict so
-      // an existing active member is never silently disturbed and a
-      // previously-approved member is not knocked back to pending.
+      // Added as `invited`: the PERSON accepts on their next sign-in, not
+      // the director. A director must not be able to put a stranger into
+      // their org on their own say-so (that would expose the stranger's
+      // reported usage / run counts the moment they sign in) -- and since
+      // the director also holds the Approve button, a director-approved
+      // `pending` protected nobody. DO NOTHING on conflict so an existing
+      // member is never disturbed or knocked back to invited.
       await sql.transaction([
         sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
         sql`
           INSERT INTO org_members (org_id, email, role, status, invited_by)
-          VALUES (${orgId}, ${targetEmail.toLowerCase()}, 'member', 'pending', ${callerEmail})
+          VALUES (${orgId}, ${targetEmail.toLowerCase()}, 'member', 'invited', ${callerEmail})
           ON CONFLICT (org_id, lower(email)) DO NOTHING
         `,
       ])
@@ -80,9 +81,11 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     }
 
     if (body.action === 'approve') {
+      // Only a join REQUEST (`pending`, from a same-domain sign-in) is the
+      // director's to approve. An `invited` row waits for the invitee.
       const results = await sql.transaction([
         sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
-        sql`UPDATE org_members SET status = 'active' WHERE org_id = ${orgId} AND lower(email) = lower(${targetEmail}) RETURNING id`,
+        sql`UPDATE org_members SET status = 'active' WHERE org_id = ${orgId} AND lower(email) = lower(${targetEmail}) AND status = 'pending' RETURNING id`,
       ])
       if ((results[1] as { id: string }[]).length === 0) {
         res.status(404).json({ error: 'member not found' })
@@ -100,10 +103,16 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 
       const targetRows = (await sql`
         SELECT role, status FROM org_members WHERE org_id = ${orgId} AND lower(email) = lower(${targetEmail})
-      `) as { role: 'director' | 'member'; status: 'pending' | 'active' }[]
+      `) as { role: 'director' | 'member'; status: 'pending' | 'active' | 'invited' }[]
       const target = targetRows[0]
       if (!target) {
         res.status(404).json({ error: 'member not found' })
+        return
+      }
+      // set-role also activates, so it must not become a way around the
+      // invitee's own acceptance.
+      if (body.action === 'set-role' && target.status === 'invited') {
+        res.status(400).json({ error: 'they have not accepted the invite yet' })
         return
       }
 

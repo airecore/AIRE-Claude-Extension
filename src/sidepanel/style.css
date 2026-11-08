@@ -1188,3 +1188,15 @@ select {
   margin: 0;
 }
 
+
+/* Invite card (list view): the invitee accepts or declines. */
+.org-invite {
+  color: var(--text-primary);
+}
+.org-invite p {
+  margin: 0 0 10px;
+}
+.org-invite-actions {
+  display: flex;
+  gap: 8px;
+}

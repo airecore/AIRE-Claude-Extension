@@ -17,8 +17,13 @@ export interface SettingsPanelContext {
   onSignOut: () => void
   orgSession: OrgSessionState | null
   onOpenManageOrg: () => void
-  /** Withdraw from the current org (member) or cancel a pending request. */
+  /** Withdraw from the current org (member), cancel a pending request, or decline an invite. */
   onLeaveOrg: () => void
+  onAcceptInvite: () => void
+}
+
+export function inviteText(orgName: string, invitedBy: string | null): string {
+  return invitedBy ? `${invitedBy} invited you to join ${orgName}.` : `You've been invited to join ${orgName}.`
 }
 
 export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement {
@@ -82,6 +87,15 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
     } else if (org?.state === 'active') {
       authSection.appendChild(orgHint(`Member of ${org.org.name}.`))
       authSection.appendChild(leaveButton('Leave organisation'))
+    } else if (org?.state === 'invited') {
+      authSection.appendChild(orgHint(inviteText(org.org.name, org.invitedBy)))
+      const accept = document.createElement('button')
+      accept.type = 'button'
+      accept.className = 'settings-action-button'
+      accept.textContent = 'Accept invite'
+      accept.addEventListener('click', context.onAcceptInvite)
+      authSection.appendChild(accept)
+      authSection.appendChild(leaveButton('Decline'))
     } else if (org?.state === 'pending') {
       authSection.appendChild(orgHint(`Waiting for approval from ${org.org.name}.`))
       authSection.appendChild(leaveButton('Cancel request'))

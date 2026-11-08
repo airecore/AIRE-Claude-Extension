@@ -1,6 +1,30 @@
 import type { OrgPrompt, OrgTab } from '../shared/org-prompts'
 import { badgeFor } from '../shared/badge'
 
+/** runState key for "a team prompt is running / just failed". */
+export const TEAM_RUN_KEY = '__team_prompt_run__'
+
+function renderList(prompts: OrgPrompt[], onRun: (p: OrgPrompt) => void, runError: string | null): HTMLElement {
+  const wrap = document.createElement('div')
+  if (prompts.length === 0) {
+    const empty = document.createElement('p')
+    empty.className = 'button-row-status'
+    empty.textContent = 'No prompts in this tab yet.'
+    wrap.appendChild(empty)
+  }
+  const list = document.createElement('ul')
+  list.className = 'team-list'
+  prompts.forEach((prompt) => list.appendChild(renderPromptRow(prompt, onRun)))
+  wrap.appendChild(list)
+  if (runError) {
+    const error = document.createElement('p')
+    error.className = 'button-row-status button-row-status-error'
+    error.textContent = runError
+    wrap.appendChild(error)
+  }
+  return wrap
+}
+
 function renderPromptRow(prompt: OrgPrompt, onRun: (p: OrgPrompt) => void): HTMLElement {
   const item = document.createElement('li')
   item.className = 'team-row'
@@ -32,6 +56,7 @@ export function renderTeamSection(
   activeTabId: string | null,
   onSelectTab: (tabId: string) => void,
   onRun: (prompt: OrgPrompt) => void,
+  runError: string | null = null,
 ): HTMLElement {
   const section = document.createElement('div')
   section.className = 'team-section'
@@ -46,10 +71,7 @@ export function renderTeamSection(
   // One tab or none: nothing to switch between, so no chip strip -- just
   // the flat prompt list, same as before shared tabs existed.
   if (orderedTabs.length <= 1) {
-    const list = document.createElement('ul')
-    list.className = 'team-list'
-    prompts.forEach((prompt) => list.appendChild(renderPromptRow(prompt, onRun)))
-    section.appendChild(list)
+    section.appendChild(renderList(prompts, onRun, runError))
     return section
   }
 
@@ -80,12 +102,7 @@ export function renderTeamSection(
   })
   section.appendChild(chipList)
 
-  const list = document.createElement('ul')
-  list.className = 'team-list'
-  prompts
-    .filter((p) => p.tabId === effectiveActiveId)
-    .forEach((prompt) => list.appendChild(renderPromptRow(prompt, onRun)))
-  section.appendChild(list)
+  section.appendChild(renderList(prompts.filter((p) => p.tabId === effectiveActiveId), onRun, runError))
 
   return section
 }

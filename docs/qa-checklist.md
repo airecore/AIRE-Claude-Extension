@@ -60,8 +60,8 @@ open a fresh claude.ai tab.
 ## 6. Admin (director)
 
 - [ ] "Manage Organisation" appears in Settings.
-- [ ] Approve a pending member → they move to active.
-- [ ] Add someone by email → they appear as **Pending** (not active).
+- [ ] A same-domain sign-in shows as **Wants to join** → **Approve** → they move to active.
+- [ ] Invite someone by email → they appear as **Invited** with only **Cancel invite** (no Approve, no Make admin).
 - [ ] Promote a member to admin / demote back.
 - [ ] The last admin cannot be removed or demoted (button blocked / error).
 - [ ] Create / rename / reorder / delete a shared tab.
@@ -78,6 +78,9 @@ open a fresh claude.ai tab.
 - [ ] **Leave organisation** → confirm → Team section disappears; Settings returns to signed-in-no-org.
 - [ ] After leaving, signing in again → onboarding / pending as appropriate.
 - [ ] **Cancel request** on a pending state → same, request is withdrawn.
+- [ ] Invited user sees "<admin> invited you to join <org>." with **Accept** / **Decline** (list card and Settings).
+- [ ] **Accept** → Team section appears, admin's roster shows them as Member.
+- [ ] **Decline** → invite gone from the admin's roster; user can set up / join another org.
 
 ## 8. Usage widget (claude.ai sidebar)
 

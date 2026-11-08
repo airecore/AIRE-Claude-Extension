@@ -27,7 +27,8 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 
   // DELETE = "leave / withdraw from my current organisation". Drops the
   // caller's own membership row -- the one their session resolves to (see
-  // resolve-membership.ts). A member or a pending invitee can always leave;
+  // resolve-membership.ts). Also how an invitee DECLINES an invite and how
+  // a pending requester cancels. A member, invitee or requester can always leave;
   // the last active director cannot (they must promote someone first),
   // matching the guard on org-members remove/demote.
   if (req.method === 'DELETE') {
@@ -57,6 +58,30 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
       res.status(204).end()
     } catch (error) {
       console.error('[org-session] leave failed', error)
+      res.status(500).json({ error: 'internal error' })
+    }
+    return
+  }
+
+  // POST { action: 'accept-invite' } -- the invitee says yes. Only flips
+  // the caller's OWN `invited` row (their verified email), so nobody can
+  // accept on someone else's behalf.
+  const action = (req.body as { action?: unknown } | undefined)?.action
+  if (action === 'accept-invite') {
+    try {
+      const membership = await resolveAnyMembership(sql, email)
+      if (!membership || membership.status !== 'invited') {
+        res.status(404).json({ error: 'no pending invite' })
+        return
+      }
+      await sql.transaction([
+        sql`SELECT set_config('app.current_org_id', ${membership.orgId}, true)`,
+        sql`UPDATE org_members SET status = 'active' WHERE org_id = ${membership.orgId} AND lower(email) = lower(${email}) AND status = 'invited'`,
+      ])
+      const org = (await sql`SELECT name FROM organizations WHERE id = ${membership.orgId}`) as { name: string }[]
+      res.status(200).json({ state: 'active', org: { id: membership.orgId, name: org[0]?.name ?? '' }, role: membership.role })
+    } catch (error) {
+      console.error('[org-session] accept invite failed', error)
       res.status(500).json({ error: 'internal error' })
     }
     return
@@ -92,6 +117,19 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
         state: 'active',
         org: { id: resolution.orgId, name: org?.name ?? '' },
         role: resolution.role,
+      })
+      return
+    }
+
+    if (resolution.state === 'invited') {
+      const org = orgs.find((candidate) => candidate.id === resolution.orgId)
+      const inviter = (await sql`
+        SELECT invited_by FROM org_members WHERE org_id = ${resolution.orgId} AND lower(email) = lower(${email})
+      `) as { invited_by: string | null }[]
+      res.status(200).json({
+        state: 'invited',
+        org: { id: resolution.orgId, name: org?.name ?? '' },
+        invitedBy: inviter[0]?.invited_by ?? null,
       })
       return
     }

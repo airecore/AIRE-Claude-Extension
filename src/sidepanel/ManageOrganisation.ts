@@ -77,13 +77,21 @@ function renderMembers(state: ManageOrgState, context: ManageOrganisationContext
     const status = document.createElement('span')
     status.className = 'roster-row-status'
     status.textContent =
-      member.status === 'pending' ? 'Pending' : member.role === 'director' ? 'Admin' : 'Member'
+      member.status === 'invited'
+        ? 'Invited'
+        : member.status === 'pending'
+          ? 'Wants to join'
+          : member.role === 'director'
+            ? 'Admin'
+            : 'Member'
     item.appendChild(status)
 
     const actions = document.createElement('div')
     actions.className = 'roster-row-actions'
 
-    if (member.status === 'pending') {
+    if (member.status === 'invited') {
+      // Nothing to do but wait for them to accept (or cancel the invite).
+    } else if (member.status === 'pending') {
       const approve = document.createElement('button')
       approve.type = 'button'
       approve.className = 'settings-action-button'
@@ -109,7 +117,7 @@ function renderMembers(state: ManageOrgState, context: ManageOrganisationContext
     const remove = document.createElement('button')
     remove.type = 'button'
     remove.className = 'icon-button icon-button-danger'
-    remove.textContent = 'Remove'
+    remove.textContent = member.status === 'invited' ? 'Cancel invite' : member.status === 'pending' ? 'Decline' : 'Remove'
     remove.addEventListener('click', () => context.onRemove(member.email))
     actions.appendChild(remove)
 
@@ -124,13 +132,15 @@ function renderMembers(state: ManageOrgState, context: ManageOrganisationContext
   addForm.className = 'roster-add-form'
   const addInput = document.createElement('input')
   addInput.type = 'email'
+  addInput.name = 'email'
+  addInput.autocomplete = 'email'
   addInput.required = true
   addInput.placeholder = 'teammate@company.com'
   addForm.appendChild(addInput)
   const addButton = document.createElement('button')
   addButton.type = 'submit'
   addButton.className = 'settings-action-button'
-  addButton.textContent = 'Add member'
+  addButton.textContent = 'Invite'
   addForm.appendChild(addButton)
   addForm.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -142,7 +152,7 @@ function renderMembers(state: ManageOrgState, context: ManageOrganisationContext
   addSection.appendChild(addForm)
   const addHint = document.createElement('p')
   addHint.className = 'settings-hint'
-  addHint.textContent = 'Added people appear as Pending until you approve them.'
+  addHint.textContent = "They'll be asked to accept the next time they sign in to AIRE."
   addSection.appendChild(addHint)
   if (state.addError) {
     const error = document.createElement('p')

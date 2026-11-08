@@ -180,11 +180,16 @@ shared prompt list on top:
   used to sign in.)
 - **Public email domains** (`gmail.com`, `outlook.com`, …) never
   auto-join — each such sign-in starts its own separate organisation.
-- **Leaving:** a member (or a pending invitee) can leave / cancel from
-  Settings at any time. The last admin must promote someone else first.
-- **Admins** get **Manage Organisation** in Settings: approve/remove
-  members, add anyone by email (they land as **pending** for one-click
-  approval), promote/demote admins, create/edit/delete
+- **Invites:** an admin can invite anyone by email. The invitee sees
+  "<admin> invited you to join <org>" the next time they sign in and
+  **accepts or declines** — the admin can't accept for them, so nobody is
+  put into an organisation (or has their usage shared) without saying yes.
+- **Leaving:** a member can leave, a requester can cancel, and an invitee
+  can decline, from Settings at any time. The last admin must promote
+  someone else first.
+- **Admins** get **Manage Organisation** in Settings: approve or decline
+  same-domain join requests ("Wants to join"), invite anyone by email,
+  cancel invites, remove members, promote/demote admins, create/edit/delete
   shared prompts and tabs, and see per-member usage and prompt-run
   analytics. An organisation can never drop to zero admins.
 - **Shared tabs:** members see the org's shared prompts grouped under

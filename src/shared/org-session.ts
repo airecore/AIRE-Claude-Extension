@@ -8,6 +8,7 @@ export interface OrgSummary {
 export type OrgSessionState =
   | { state: 'active'; org: OrgSummary; role: 'director' | 'member' }
   | { state: 'pending'; org: OrgSummary }
+  | { state: 'invited'; org: OrgSummary; invitedBy: string | null }
   | { state: 'needs_onboarding' }
 
 export interface OnboardingResult {
@@ -37,6 +38,12 @@ export function parseOrgSessionResponse(raw: unknown): OrgSessionState | null {
   if (state === 'pending') {
     const org = parseOrgSummary(raw.org)
     return org ? { state: 'pending', org } : null
+  }
+
+  if (state === 'invited') {
+    const org = parseOrgSummary(raw.org)
+    const invitedBy = typeof raw.invitedBy === 'string' ? raw.invitedBy : null
+    return org ? { state: 'invited', org, invitedBy } : null
   }
 
   if (state === 'active') {
@@ -89,6 +96,26 @@ export async function fetchOrgSession(idToken: string): Promise<OrgSessionState 
     return null
   }
   return parseOrgSessionResponse(body)
+}
+
+/** Accepts the caller's pending invite. Returns the new (active) session,
+ * or null if it failed or there was no invite to accept. */
+export async function acceptInvite(idToken: string): Promise<OrgSessionState | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/org-session`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'accept-invite' }),
+    })
+    if (!response.ok) {
+      console.error('[Claude Tools] accept invite returned status', response.status)
+      return null
+    }
+    return parseOrgSessionResponse(await response.json())
+  } catch (error) {
+    console.error('[Claude Tools] failed to accept invite', error)
+    return null
+  }
 }
 
 export type LeaveOrgResult = 'left' | 'last_admin' | 'not_in_org' | 'error'

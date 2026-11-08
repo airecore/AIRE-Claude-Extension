@@ -11,6 +11,20 @@ describe('parseOrgSessionResponse', () => {
     })
   })
 
+  it('parses an invited state with who invited them', () => {
+    const raw = { state: 'invited', org: { id: 'org-1', name: 'Acme' }, invitedBy: 'boss@acme.com' }
+    expect(parseOrgSessionResponse(raw)).toEqual({
+      state: 'invited',
+      org: { id: 'org-1', name: 'Acme' },
+      invitedBy: 'boss@acme.com',
+    })
+  })
+
+  it('parses an invited state with no inviter as invitedBy null', () => {
+    const raw = { state: 'invited', org: { id: 'org-1', name: 'Acme' } }
+    expect(parseOrgSessionResponse(raw)).toMatchObject({ state: 'invited', invitedBy: null })
+  })
+
   it('parses a pending state with org, no role', () => {
     const raw = { state: 'pending', org: { id: 'org-1', name: 'Acme' } }
     expect(parseOrgSessionResponse(raw)).toEqual({ state: 'pending', org: { id: 'org-1', name: 'Acme' } })

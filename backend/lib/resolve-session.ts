@@ -4,12 +4,13 @@ export interface OrgMemberRecord {
   orgId: string
   email: string
   role: 'director' | 'member'
-  status: 'pending' | 'active'
+  status: 'pending' | 'active' | 'invited'
 }
 
 export type SessionResolution =
   | { state: 'active'; orgId: string; role: 'director' | 'member' }
   | { state: 'pending'; orgId: string }
+  | { state: 'invited'; orgId: string }
   | { state: 'needs_onboarding' }
 
 export function resolveSessionState(
@@ -18,9 +19,12 @@ export function resolveSessionState(
   orgs: OrgRecord[],
 ): SessionResolution {
   if (existingMember) {
-    return existingMember.status === 'active'
-      ? { state: 'active', orgId: existingMember.orgId, role: existingMember.role }
-      : { state: 'pending', orgId: existingMember.orgId }
+    if (existingMember.status === 'active') {
+      return { state: 'active', orgId: existingMember.orgId, role: existingMember.role }
+    }
+    // An admin added them; nothing is shared until they accept.
+    if (existingMember.status === 'invited') return { state: 'invited', orgId: existingMember.orgId }
+    return { state: 'pending', orgId: existingMember.orgId }
   }
 
   const atIndex = email.lastIndexOf('@')

@@ -11,8 +11,8 @@ const AIRE_LOGO_SVG =
   '</svg>'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
-import { renderSettingsPanel } from './SettingsPanel'
-import { renderTeamSection } from './TeamSection'
+import { renderSettingsPanel, inviteText } from './SettingsPanel'
+import { renderTeamSection, TEAM_RUN_KEY } from './TeamSection'
 import { renderOrgOnboarding } from './OrgOnboarding'
 import { renderManageOrganisation, type ManageOrgState } from './ManageOrganisation'
 import { renderTabStrip } from './TabStrip'
@@ -82,6 +82,7 @@ export interface RenderContext {
   onOnboardingCancel: () => void
   onOpenManageOrg: () => void
   onLeaveOrg: () => void
+  onAcceptInvite: () => void
   onManageOrgBack: () => void
   onApproveMember: (email: string) => void
   onRemoveMember: (email: string) => void
@@ -195,6 +196,7 @@ export function renderApp(
         orgSession,
         onOpenManageOrg: context.onOpenManageOrg,
         onLeaveOrg: context.onLeaveOrg,
+        onAcceptInvite: context.onAcceptInvite,
       }),
     )
     return
@@ -310,7 +312,28 @@ export function renderApp(
   root.appendChild(list)
   }
 
-  if (orgSession?.state === 'pending') {
+  if (orgSession?.state === 'invited') {
+    const card = document.createElement('div')
+    card.className = 'org-pending-banner org-invite'
+    const text = document.createElement('p')
+    text.textContent = `${inviteText(orgSession.org.name, orgSession.invitedBy)} Joining shares its prompts with you, and your usage with its admins.`
+    card.appendChild(text)
+    const actions = document.createElement('div')
+    actions.className = 'org-invite-actions'
+    const accept = document.createElement('button')
+    accept.type = 'button'
+    accept.className = 'add-button'
+    accept.textContent = 'Accept'
+    accept.addEventListener('click', context.onAcceptInvite)
+    const decline = document.createElement('button')
+    decline.type = 'button'
+    decline.className = 'settings-action-button'
+    decline.textContent = 'Decline'
+    decline.addEventListener('click', context.onLeaveOrg)
+    actions.append(accept, decline)
+    card.appendChild(actions)
+    root.appendChild(card)
+  } else if (orgSession?.state === 'pending') {
     const banner = document.createElement('p')
     banner.className = 'org-pending-banner'
     banner.textContent = "You're signed in. Waiting for an admin to approve you."
@@ -332,6 +355,7 @@ export function renderApp(
         teamActiveTabId,
         context.onSelectTeamTab,
         context.onRunTeamPrompt,
+        runState.get(TEAM_RUN_KEY)?.error ?? null,
       ),
     )
   }

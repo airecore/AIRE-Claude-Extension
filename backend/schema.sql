@@ -88,6 +88,16 @@ create table if not exists org_members (
 -- (`on conflict (org_id, lower(email))`) so the inference matches this index.
 create unique index if not exists org_members_org_email_key on org_members (org_id, lower(email));
 
+-- 'invited' (2026-11): an admin added this person and THEY must accept;
+-- 'pending' is now only a same-domain join request the admin approves.
+-- Re-runnable: the constraint is replaced, and admin-added rows still
+-- sitting at 'pending' (invited_by is only ever set by an admin add or
+-- onboarding invite) become invites.
+alter table org_members drop constraint if exists org_members_status_check;
+alter table org_members add constraint org_members_status_check
+  check (status in ('pending', 'active', 'invited'));
+update org_members set status = 'invited' where status = 'pending' and invited_by is not null;
+
 alter table org_members enable row level security;
 alter table org_members force row level security;
 

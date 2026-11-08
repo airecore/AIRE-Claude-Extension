@@ -112,18 +112,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       INSERT INTO org_tabs (org_id, name, sort_order) VALUES (${createdOrg.id}, 'General', 0)
     `
 
-    // Invited emails go in as `pending`, not `active`: the person confirms
-    // by signing in and the director approves them. Adding them straight to
-    // `active` would let anyone who can reach onboarding (any public-domain
-    // sign-in can) pre-seed a stranger's address into an org they control
-    // and, once that stranger first signs in, read their reported usage and
-    // run counts. A pending row exposes none of that (every member read
-    // requires status = 'active').
+    // Invited emails go in as `invited`: each person accepts (or declines)
+    // on their next sign-in. Adding them straight to `active` would let
+    // anyone who can reach onboarding (any public-domain sign-in can)
+    // pre-seed a stranger's address into an org they control and read their
+    // reported usage and run counts. An invited row exposes none of that
+    // (every member read requires status = 'active').
     for (const memberEmail of initialMemberEmails) {
       if (memberEmail === email.toLowerCase()) continue
       await sql`
         INSERT INTO org_members (org_id, email, role, status, invited_by)
-        VALUES (${createdOrg.id}, ${memberEmail}, 'member', 'pending', ${email})
+        VALUES (${createdOrg.id}, ${memberEmail}, 'member', 'invited', ${email})
         ON CONFLICT (org_id, lower(email)) DO NOTHING
       `
     }

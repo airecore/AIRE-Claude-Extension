@@ -40,7 +40,7 @@ import {
   type OrgPrompt,
   type OrgPromptsResult,
 } from '../shared/org-prompts'
-import { fetchOrgSession, submitOrgOnboarding, leaveOrg, type OrgSessionState } from '../shared/org-session'
+import { fetchOrgSession, submitOrgOnboarding, leaveOrg, acceptInvite, type OrgSessionState } from '../shared/org-session'
 import {
   fetchOrgMembers,
   approveOrgMember,
@@ -50,6 +50,7 @@ import {
   type OrgMember,
 } from '../shared/org-members'
 import type { ManageOrgState } from './ManageOrganisation'
+import { TEAM_RUN_KEY } from './TeamSection'
 import { reportUsage, fetchOrgUsage, type OrgUsageSnapshot } from '../shared/usage-report'
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
@@ -86,7 +87,6 @@ let promptFormError: string | null = null
 let orgUsageSnapshots: OrgUsageSnapshot[] = []
 const USAGE_REPORT_INTERVAL_MS = 15 * 60 * 1000
 let usageReportTimer: ReturnType<typeof setInterval> | null = null
-const TEAM_RUN_KEY = '__team_prompt_run__'
 const runState = new Map<string, RunState>()
 
 // Analytics fire when an inserted prompt is actually sent, not on click.
@@ -204,37 +204,37 @@ async function resolveOrgSessionInner(root: HTMLElement): Promise<void> {
   if (view.mode === 'list' || view.mode === 'settings') await refresh(root)
 }
 
-async function refreshOrgMembers(root: HTMLElement): Promise<void> {
+async function refreshOrgMembers(root: HTMLElement, rerender = true): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const members = await fetchOrgMembers(idToken)
   if (members) orgMembers = members
-  if (view.mode === 'manage-org') await refresh(root)
+  if (rerender && view.mode === 'manage-org') await refresh(root)
 }
 
-async function refreshOrgPrompts(root: HTMLElement): Promise<void> {
+async function refreshOrgPrompts(root: HTMLElement, rerender = true): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const result = await loadOrgPrompts(idToken)
   orgPrompts = result.prompts
   teamPrompts = result
-  if (view.mode === 'manage-org') await refresh(root)
+  if (rerender && view.mode === 'manage-org') await refresh(root)
 }
 
-async function refreshOrgUsage(root: HTMLElement): Promise<void> {
+async function refreshOrgUsage(root: HTMLElement, rerender = true): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const snapshots = await fetchOrgUsage(idToken)
   if (snapshots) orgUsageSnapshots = snapshots
-  if (view.mode === 'manage-org') await refresh(root)
+  if (rerender && view.mode === 'manage-org') await refresh(root)
 }
 
-async function refreshOrgAnalytics(root: HTMLElement): Promise<void> {
+async function refreshOrgAnalytics(root: HTMLElement, rerender = true): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   const analytics = await fetchOrgAnalytics(idToken)
   if (analytics) orgAnalytics = analytics
-  if (view.mode === 'manage-org') await refresh(root)
+  if (rerender && view.mode === 'manage-org') await refresh(root)
 }
 
 /** Runs a shared-tab / shared-prompt write with a "Saving..." spinner in
@@ -286,6 +286,35 @@ function stopUsageReportTimer(): void {
   }
 }
 
+/** The text field the user is typing in, so a full re-render (background
+ * org loads redraw the whole panel) doesn't wipe it or steal focus.
+ * Matched by placeholder / aria-label / label text. A field whose form was
+ * just submitted is skipped -- that form is meant to come back empty. */
+interface TypingSnapshot { key: string; value: string; start: number | null; end: number | null }
+
+function fieldKey(el: HTMLInputElement | HTMLTextAreaElement): string {
+  return el.placeholder || el.getAttribute('aria-label') || el.closest('label')?.firstChild?.textContent || ''
+}
+
+function captureTyping(root: HTMLElement): TypingSnapshot | null {
+  const el = document.activeElement
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) || !root.contains(el)) return null
+  if (el.form?.dataset.submitted) return null
+  const key = fieldKey(el)
+  return key ? { key, value: el.value, start: el.selectionStart, end: el.selectionEnd } : null
+}
+
+function restoreTyping(root: HTMLElement, snap: TypingSnapshot | null): void {
+  if (!snap) return
+  const el = Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea')).find(
+    (f) => fieldKey(f) === snap.key,
+  )
+  if (!el) return
+  if (!el.value) el.value = snap.value
+  el.focus()
+  try { el.setSelectionRange(snap.start, snap.end) } catch { /* email inputs don't support selection */ }
+}
+
 async function refresh(root: HTMLElement): Promise<void> {
   try {
     const buttons = await toolService.listButtons()
@@ -305,6 +334,7 @@ async function refresh(root: HTMLElement): Promise<void> {
     if (sortMode === 'most-used') {
       visibleButtons = sortButtonsByMostUsed(visibleButtons, buttonUsage)
     }
+    const typing = captureTyping(root)
     renderApp(
       root,
       visibleButtons,
@@ -680,10 +710,12 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'manage-org' }
         void refresh(root)
         void Promise.allSettled([
-          refreshOrgMembers(root),
-          refreshOrgPrompts(root),
-          refreshOrgUsage(root),
-          refreshOrgAnalytics(root),
+          // One redraw when all four land (below), not one per fetch --
+          // each redraw replaces every input, killing autofill mid-click.
+          refreshOrgMembers(root, false),
+          refreshOrgPrompts(root, false),
+          refreshOrgUsage(root, false),
+          refreshOrgAnalytics(root, false),
         ]).then(() => {
           manageOrgLoading = false
           if (view.mode === 'manage-org') void refresh(root)
@@ -696,13 +728,35 @@ async function refresh(root: HTMLElement): Promise<void> {
         view = { mode: 'settings' }
         void refresh(root)
       },
+      onAcceptInvite: async () => {
+        const idToken = await authAdapter.getValidToken()
+        if (!idToken) {
+          announce('Please sign in again.')
+          return
+        }
+        const accepted = await acceptInvite(idToken)
+        if (!accepted) {
+          announce('Could not accept the invite. Check the console for details.')
+          return
+        }
+        // Re-resolve through the normal path so shared prompts, the cache
+        // and usage reporting start exactly as for any active member.
+        await resolveOrgSession(root)
+        announce(accepted.state === 'active' ? `Joined ${accepted.org.name}.` : 'Invite accepted.')
+      },
       onLeaveOrg: async () => {
         const leaving = orgSession
         const isPending = leaving?.state === 'pending'
-        const name = leaving?.state === 'active' || leaving?.state === 'pending' ? leaving.org.name : 'this organisation'
-        const message = isPending
-          ? `Cancel your request to join ${name}?`
-          : `Leave ${name}? You'll lose access to its shared prompts until you're re-added.`
+        const isInvited = leaving?.state === 'invited'
+        const name =
+          leaving?.state === 'active' || leaving?.state === 'pending' || leaving?.state === 'invited'
+            ? leaving.org.name
+            : 'this organisation'
+        const message = isInvited
+          ? `Decline the invite to join ${name}?`
+          : isPending
+            ? `Cancel your request to join ${name}?`
+            : `Leave ${name}? You'll lose access to its shared prompts until you're re-added.`
         if (!window.confirm(message)) return
 
         const idToken = await authAdapter.getValidToken()
@@ -725,7 +779,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         teamPrompts = { orgName: null, tabs: [], prompts: [] }
         await clearCachedOrgPrompts()
         stopUsageReportTimer()
-        announce(isPending ? 'Request cancelled.' : `Left ${name}.`)
+        announce(isInvited ? 'Invite declined.' : isPending ? 'Request cancelled.' : `Left ${name}.`)
         await refresh(root)
         void resolveOrgSession(root)
       },
@@ -832,12 +886,19 @@ async function refresh(root: HTMLElement): Promise<void> {
       onRunTeamPrompt: async (prompt: OrgPrompt) => {
         const alreadyRunning = [...runState.values()].some((state) => state.isRunning)
         if (alreadyRunning) return
+        clearRunErrors()
         runState.set(TEAM_RUN_KEY, { isRunning: true, error: null })
+        // Shown under the Team list (not just to screen readers), like a
+        // personal button's inline error.
+        const fail = (message: string) => {
+          announce(message)
+          runState.set(TEAM_RUN_KEY, { isRunning: false, error: message })
+        }
         try {
           try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
             if (!tab?.id || !tab.url) {
-              announce('Open claude.ai to use this tool.')
+              fail('Open claude.ai to use this tool.')
               return
             }
             const runToken = crypto.randomUUID()
@@ -854,7 +915,7 @@ async function refresh(root: HTMLElement): Promise<void> {
               )
             } catch (error) {
               console.error('[Claude Tools] failed to reach content script', error)
-              announce('Reload the Claude tab and try again.')
+              fail('Reload the Claude tab and try again.')
               return
             }
             if (response.ok) {
@@ -866,14 +927,15 @@ async function refresh(root: HTMLElement): Promise<void> {
               })
             } else {
               console.error('[Claude Tools] team prompt run failed', response.error, response.message)
-              announce(response.message)
+              fail(response.message)
             }
           } catch (error) {
             console.error('[Claude Tools] unexpected error running team prompt', error)
-            announce('Something went wrong running that tool. Check the console for details.')
+            fail('Something went wrong running that tool. Check the console for details.')
           }
         } finally {
-          runState.delete(TEAM_RUN_KEY)
+          if (runState.get(TEAM_RUN_KEY)?.isRunning) runState.delete(TEAM_RUN_KEY)
+          if (view.mode === 'list') await refresh(root)
         }
       },
       },
@@ -883,6 +945,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       handles.find((el) => el.dataset.buttonId === focusHandleId)?.focus()
       focusHandleId = null
     }
+    restoreTyping(root, typing)
   } catch (error) {
     console.error('[Claude Tools] failed to load buttons', error)
     root.textContent = 'Something went wrong loading your tools. Check the console for details.'
@@ -890,6 +953,8 @@ async function refresh(root: HTMLElement): Promise<void> {
 }
 
 async function start(): Promise<void> {
+  // Lets captureTyping skip a form that was just submitted (see above).
+  root.addEventListener('submit', (e) => { (e.target as HTMLFormElement).dataset.submitted = '1' }, true)
   session = await authAdapter.getCurrentSession()
   await refresh(root)
   if (session) void resolveOrgSession(root)

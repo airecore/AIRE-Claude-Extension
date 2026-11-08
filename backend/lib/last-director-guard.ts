@@ -1,6 +1,6 @@
 export interface MemberRoleStatus {
   role: 'director' | 'member'
-  status: 'pending' | 'active'
+  status: 'pending' | 'active' | 'invited'
 }
 
 export function isLastActiveDirector(target: MemberRoleStatus, otherActiveDirectorCount: number): boolean {
