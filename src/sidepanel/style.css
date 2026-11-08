@@ -47,6 +47,7 @@
    same roles. Every colour is a token; components never hardcode. */
 :root {
   --font-sans: 'Alfabet', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
   --surface-canvas: #f7f6f3;
   --surface-card: #ffffff;
   --surface-input: #ffffff;
@@ -80,20 +81,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface-canvas: #17150f;
-    --surface-card: #201d16;
-    --surface-input: #262219;
-    --surface-hover: #2c281f;
-    --surface-sunken: #131109;
-    --text-primary: #f3efe6;
-    --text-muted: #b0a99a;
-    --accent: #9b8cff;
-    --accent-solid: #9b8cff;
-    --accent-solid-hover: #b0a4ff;
-    --accent-text-on: #1b1712;
-    --accent-tint: #29244a;
-    --border: #3a342a;
-    --border-strong: #4a4235;
+    /* Matched to getaiready.now/au computed styles, 2026-11-08. */
+    --surface-canvas: #16130f;
+    --surface-card: #1e1a16;
+    --surface-input: #231f1a;
+    --surface-hover: #2b2620;
+    --surface-sunken: #110f0c;
+    --text-primary: #f2efe9;
+    --text-muted: #bdb6ac;
+    --accent: #8b7fd4;
+    --accent-solid: #8b7fd4;
+    --accent-solid-hover: #9d92e0;
+    --accent-text-on: #201c17;
+    --accent-tint: #262140;
+    --border: #2b2620;
+    --border-strong: #3a342e;
     --danger: #ff6b60;
     --danger-hover-bg: #3a1f1d;
     --danger-border: #5c2e29;
@@ -131,14 +133,17 @@ optgroup {
   opacity: 1;
 }
 
-/* ALL-CAPS letter-spaced section label, AIRE-style. */
+/* ALL-CAPS letter-spaced label in a monospace face -- getaiready.now sets
+   these in Space Mono; the system mono stack stands in (no extra font file). */
 .eyebrow,
 .team-section-heading,
-.roster-row-status {
+.roster-row-status,
+.stat-tile-label {
+  font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 h1, h2, h3 {
@@ -755,7 +760,9 @@ h1, h2, h3 {
 }
 
 .roster-row-email {
-  flex: 1;
+  /* 12em basis: in a narrow panel the badge/actions wrap to a second line
+     instead of squeezing the email down to "luk…". */
+  flex: 1 1 12em;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

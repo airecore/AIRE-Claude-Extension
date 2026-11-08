@@ -140,14 +140,24 @@ describe('parseUsageResponse', () => {
     expect(spendMeter?.severity).toBe('normal')
   })
 
-  it('falls back to the raw kind as the label for an unrecognized limit kind', () => {
+  it('humanizes the kind as the label for an unrecognized limit kind', () => {
     const response = {
       limits: [{ kind: 'mystery_limit', percent: 50, severity: 'normal', resets_at: null }],
     }
     const result = parseUsageResponse(response)
     expect(result.meters).toEqual([
-      { label: 'mystery_limit', percent: 50, severity: 'normal', resetsAt: null, disabledReason: null },
+      { label: 'Mystery limit', percent: 50, severity: 'normal', resetsAt: null, disabledReason: null },
     ])
+  })
+
+  it('labels a model-scoped weekly limit with the model name (live shape, 2026-11)', () => {
+    const response = {
+      limits: [{
+        kind: 'weekly_scoped', group: 'weekly', percent: 0, severity: 'normal', resets_at: null,
+        scope: { model: { id: null, display_name: 'Fable' }, surface: null },
+      }],
+    }
+    expect(parseUsageResponse(response).meters[0].label).toBe('Weekly · Fable')
   })
 
   it('skips a limits entry missing a required field instead of throwing', () => {

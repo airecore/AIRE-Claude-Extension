@@ -806,10 +806,15 @@ async function refresh(root: HTMLElement): Promise<void> {
             ? null
             : 'Something went wrong saving that prompt. Check the console for details.'
         }),
-      onDeletePrompt: (id: string) =>
-        runOrgWrite(root, async (idToken) => {
+      onDeletePrompt: async (id: string) => {
+        const prompt = orgPrompts.find((p) => p.id === id)
+        if (!window.confirm(`Delete the shared prompt "${prompt?.name ?? ''}"? Everyone in the organisation loses it.`)) return
+        await runOrgWrite(root, async (idToken) => {
           await deleteOrgPrompt(idToken, id)
-        }),
+        })
+        // Top prompts lists every shared prompt; reload so the deleted one drops out.
+        await refreshOrgAnalytics(root)
+      },
       onEditPromptClick: (prompt: OrgPrompt) => {
         editingPromptId = prompt.id
         promptFormError = null

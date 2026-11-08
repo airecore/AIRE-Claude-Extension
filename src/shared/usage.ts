@@ -37,7 +37,17 @@ function parseLimitEntry(entry: unknown): UsageMeter | null {
   const severity = entry.severity
   if (typeof kind !== 'string' || typeof percent !== 'number' || typeof severity !== 'string') return null
   const resetsAt = typeof entry.resets_at === 'string' ? entry.resets_at : null
-  return { label: LIMIT_LABELS[kind] ?? kind, percent, severity, resetsAt, disabledReason: null }
+  return { label: limitLabel(kind, entry.scope), percent, severity, resetsAt, disabledReason: null }
+}
+
+/** Known kinds get a fixed label; a model-scoped limit (e.g. `weekly_scoped`)
+ * is named after its model; anything else is humanized, never shown raw. */
+function limitLabel(kind: string, scope: unknown): string {
+  if (LIMIT_LABELS[kind]) return LIMIT_LABELS[kind]
+  const model = isRecord(scope) && isRecord(scope.model) ? scope.model.display_name : null
+  if (typeof model === 'string' && model) return kind.startsWith('weekly') ? `Weekly · ${model}` : model
+  const words = kind.replace(/_/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 function parseSpendMeter(spend: unknown): UsageMeter | null {
