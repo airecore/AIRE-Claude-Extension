@@ -93,7 +93,11 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
       accept.type = 'button'
       accept.className = 'settings-action-button'
       accept.textContent = 'Accept invite'
-      accept.addEventListener('click', context.onAcceptInvite)
+      accept.addEventListener('click', () => {
+        accept.disabled = true
+        accept.textContent = 'Joining...'
+        context.onAcceptInvite()
+      })
       authSection.appendChild(accept)
       authSection.appendChild(leaveButton('Decline'))
     } else if (org?.state === 'pending') {

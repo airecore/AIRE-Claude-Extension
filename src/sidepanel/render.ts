@@ -324,12 +324,18 @@ export function renderApp(
     accept.type = 'button'
     accept.className = 'add-button'
     accept.textContent = 'Accept'
-    accept.addEventListener('click', context.onAcceptInvite)
     const decline = document.createElement('button')
     decline.type = 'button'
     decline.className = 'settings-action-button'
     decline.textContent = 'Decline'
     decline.addEventListener('click', context.onLeaveOrg)
+    // Accepting can take a few seconds (backend + loading shared prompts);
+    // show it's working so nobody clicks twice.
+    accept.addEventListener('click', () => {
+      accept.disabled = decline.disabled = true
+      accept.textContent = 'Joining...'
+      context.onAcceptInvite()
+    })
     actions.append(accept, decline)
     card.appendChild(actions)
     root.appendChild(card)

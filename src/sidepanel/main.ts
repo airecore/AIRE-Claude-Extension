@@ -737,6 +737,8 @@ async function refresh(root: HTMLElement): Promise<void> {
         const accepted = await acceptInvite(idToken)
         if (!accepted) {
           announce('Could not accept the invite. Check the console for details.')
+          // Re-render so the card's "Joining..." button is clickable again.
+          await resolveOrgSession(root)
           return
         }
         // Re-resolve through the normal path so shared prompts, the cache
