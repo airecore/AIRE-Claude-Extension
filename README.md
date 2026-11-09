@@ -6,22 +6,38 @@ skill invocation; clicking it types that text into Claude's chat box so
 you can review (and edit) it before sending — **nothing is ever sent
 automatically**.
 
-- **Personal buttons** work with zero sign-in, zero backend, zero data
-  leaving your browser (`chrome.storage.local`).
-- **Organisations** (optional): sign in to unlock a shared, admin-managed
-  prompt list, membership, and usage/analytics for admins. This part
-  talks to a hosted backend — see [Organisations](#organisations).
+- **Personal buttons** work with no sign-in and no backend; they are
+  stored only in the browser (`chrome.storage.local`).
+- **Organisations** (optional): sign in to get a shared, admin-managed
+  prompt library, invites, membership and admin analytics. This part
+  talks to the hosted backend — see [Organisations](#organisations).
+
+Version **1.0.0** — feature-complete, tested, and prepared for the Chrome
+Web Store. What is still needed before submitting is listed in
+[Before launch](#before-launch--what-is-still-needed).
 
 ---
 
-## For testers — get it running
+## Where everything lives
 
-You need **Node.js 20 or 22 LTS** and **pnpm 9+**. Node 24 currently
-breaks pnpm's pre-run step on some machines; stick to an LTS release.
+| Piece | Location |
+|---|---|
+| Code | https://github.com/airecore/AIRE-Claude-Extension (`main` branch) |
+| Backend (API + privacy policy) | Vercel project `claude-extension` on the company Vercel team (Pro), live at https://claude-extension-xi.vercel.app. Deploys automatically on every push to `main`. |
+| Database | Neon Postgres (connection string in the Vercel `DATABASE_URL` variable) |
+| Sign-in | Clerk development instance `innocent-lamb-6401.clerk.accounts.dev` (to be replaced by a production instance on the company domain before launch) |
+| Privacy policy | https://claude-extension-xi.vercel.app/privacy.html (source: `backend/public/privacy.html`) |
+| Store listing text and answers | [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md) |
+
+---
+
+## Install it for testing
+
+You need **Node.js 22 LTS** (20 also works), **pnpm 9+** and **git**.
 
 ```bash
 git clone https://github.com/airecore/AIRE-Claude-Extension.git
-cd Claude-Extension
+cd AIRE-Claude-Extension
 pnpm install
 pnpm run build
 ```
@@ -35,186 +51,163 @@ Then in Chrome:
 
 Open a claude.ai tab and click the extension's toolbar icon to open the
 sidebar. After any later `pnpm run build`, click the reload icon on the
-extension's card in `chrome://extensions`.
+extension's card in `chrome://extensions`, then reload the claude.ai tab.
 
-That's the whole tester setup. You do **not** register anything, create
-any account, deploy anything, or edit any config. Organisation sign-in
-uses a backend that is already deployed and shared by all testers.
+Testers do not register, deploy or configure anything. Organisation
+sign-in uses the shared live backend.
 
-**Prerequisites, if you don't have them:**
+**Installing the prerequisites:**
 
+- **Windows:** install [Node.js 22 LTS](https://nodejs.org) and
+  [Git for Windows](https://git-scm.com/download/win), then run
+  `corepack enable`.
 - **macOS:** `brew install node@22 pnpm git`
-- **Windows:** install [Node.js 22 LTS](https://nodejs.org), then
-  `corepack enable` (or `npm install -g pnpm`). Git ships with
-  [Git for Windows](https://git-scm.com/download/win).
-- **Linux:** install Node 22 from your distro or
-  [nvm](https://github.com/nvm-sh/nvm) (`nvm install 22`), then
+- **Linux:** install Node 22 (for example with `nvm install 22`), then
   `corepack enable`.
 
 ### If organisation sign-in fails
 
-Personal buttons still work regardless. If **sign-in itself** errors:
+Personal buttons keep working either way.
 
-- `redirect_uri_mismatch` / the Clerk page 404s → a **one-time developer
-  setup** item isn't done. Not something a tester can fix — tell the
-  developer. See [For the developer](#for-the-developer--one-time-setup).
-- "Reload the Claude tab and try again" → reload the claude.ai tab (the
-  content script only injects into tabs opened *after* the extension was
-  loaded/reloaded), then retry.
+- **"Reload the Claude tab and try again"** — reload the claude.ai tab.
+  The extension only connects to tabs opened after it was loaded or
+  reloaded.
+- **`redirect_uri_mismatch`, or the sign-in page shows a 404** — the
+  extension ID's redirect URI is missing from Clerk. See
+  [Clerk sign-in](#2-clerk-sign-in).
 
 ---
 
-## For the developer — one-time setup
+## Setting up the services from scratch
 
-Do these **once**. After that, any number of testers on any number of
-machines can clone-build-run with no further per-tester work, because the
-extension ID is pinned (`key` in `manifest.config.ts`) so every build has
-the same ID and the same single OAuth redirect URI.
+The live setup above is already done. These steps are for recreating it
+(for example for the production switch). The extension ID is pinned
+(`key` in `manifest.config.ts`), so every developer build has the same ID
+(`fhaeedmmhjjkhnopifppigddjbbmdegh`) and needs the same single redirect
+URI.
 
 ### 1. Backend (Vercel + Neon)
 
-1. Create a **Neon** Postgres database. Run `backend/schema.sql` against
-   it (Neon SQL Editor, or `psql "$DATABASE_URL" -f backend/schema.sql`).
-   The whole file is idempotent — **re-run it after pulling** so new
-   tables (most recently `rate_limits`) get created. The `DATABASE_URL`
-   role must be a plain non-superuser without `BYPASSRLS`, or row-level
-   security is silently defeated.
+1. Create a **Neon** Postgres database and run `backend/schema.sql` in
+   the Neon SQL Editor. The file is safe to re-run; re-run it whenever it
+   changes so new tables, constraints and policies are applied. The
+   `DATABASE_URL` role must be a plain non-superuser without
+   `BYPASSRLS`, otherwise row-level security is bypassed.
 2. Create a **Vercel** project from this repo with **Root Directory =
    `backend`**. It deploys on every push to `main`.
-3. Set these environment variables in the Vercel project
-   (Settings → Environment Variables):
+3. Set these environment variables (Vercel → Settings → Environment
+   Variables), then redeploy:
 
-   | Variable | Required | Value |
-   |---|---|---|
-   | `DATABASE_URL` | yes | Neon connection string |
-   | `SESSION_JWT_SECRET` | yes | `openssl rand -hex 32` — signs 14-day session tokens |
-   | `CLERK_ISSUER` | yes | e.g. `https://your-instance.clerk.accounts.dev` (same as `CLERK_DOMAIN` with `https://`) |
-   | `CLERK_OAUTH_CLIENT_ID` | yes | from Clerk → OAuth Applications |
-   | `CLERK_OAUTH_CLIENT_SECRET` | leave unset | only set this if the Clerk OAuth app is **Confidential**. It should be **Public** (see step 2 below) — leave this var out entirely. |
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon connection string |
+   | `SESSION_JWT_SECRET` | output of `openssl rand -hex 32`; signs the 14-day session tokens |
+   | `CLERK_ISSUER` | the Clerk instance origin, e.g. `https://innocent-lamb-6401.clerk.accounts.dev` (same as `CLERK_DOMAIN` with `https://`) |
+   | `CLERK_OAUTH_CLIENT_ID` | from Clerk → OAuth Applications |
 
-   > **If sign-in fails with "Client authentication failed... no client
-   > authentication included"**: the Clerk OAuth Application is set to
-   > Confidential. Either set `CLERK_OAUTH_CLIENT_SECRET` above to its
-   > secret, or (recommended) switch the app to **Public** in Clerk and
-   > delete this env var if you'd set it. Redeploy after either change —
-   > env var edits don't take effect until the next deploy.
+   Do **not** set `CLERK_OAUTH_CLIENT_SECRET`. The Clerk OAuth application
+   must be **Public (PKCE)**. If sign-in fails with "Client authentication
+   failed", the application is set to Confidential: switch it to Public in
+   Clerk and redeploy.
 
 4. Put the deployed URL in **`src/shared/api-base.ts`** (`API_BASE_URL`)
-   and in `host_permissions` in `manifest.config.ts`. Commit. Testers
-   build from this, so their extension points at your backend.
+   and commit. The manifest's host permissions are generated from it.
 
 ### 2. Clerk sign-in
 
-Sign-in goes entirely through Clerk — one OAuth application that fans out
-to Google, GitHub, Microsoft, email, and enterprise SSO, whichever you
-enable in the dashboard.
+All sign-in goes through one Clerk OAuth application, which offers
+whichever methods are turned on in Clerk (Google, Microsoft, GitHub,
+email code, enterprise SSO).
 
 1. Clerk Dashboard → **Configure → OAuth Applications → New application**.
-   Scopes `openid email profile`. Redirect URI (exact, trailing slash):
+   Type **Public (PKCE)**. Scopes `openid email profile`. Redirect URI
+   (exact, including the trailing slash):
    ```
-   https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/
+   https://<extension-id>.chromiumapp.org/
    ```
-   This is the pinned extension ID — it never changes between machines,
-   so the URI is added **once, ever**. **Set the application type to
-   Public (PKCE), not Confidential** — a browser extension can't keep a
-   secret, and a Confidential app fails sign-in with "Client
-   authentication failed" unless you also wire up
-   `CLERK_OAUTH_CLIENT_SECRET`.
-2. Copy the **Client ID** into `src/shared/auth/providers.ts`
-   (`CLERK_OAUTH_CLIENT_ID`); set `CLERK_DOMAIN` there to your instance
-   host. Commit.
-3. Set `CLERK_ISSUER` (and `CLERK_OAUTH_CLIENT_SECRET` if the app is
-   confidential) in Vercel. Add your instance host to `host_permissions`
-   in `manifest.config.ts` if it differs from the default.
-4. In the Clerk Dashboard, turn on the sign-in methods you want under
-   **Social Connections** and **SSO Connections** (Google, GitHub, …) —
-   no code change. Clerk's dev instance (`*.clerk.accounts.dev`) has no
-   allow-list, so any tester can sign in with an enabled method.
+   For developer builds the ID is `fhaeedmmhjjkhnopifppigddjbbmdegh`.
+   The Chrome Web Store build gets its own ID on first upload; add that
+   redirect URI as well.
+2. Put the instance host in `CLERK_DOMAIN` and the client ID in
+   `CLERK_OAUTH_CLIENT_ID` in **`src/shared/auth/providers.ts`**, and
+   commit. The manifest's host permissions are generated from it.
+3. Set `CLERK_ISSUER` and `CLERK_OAUTH_CLIENT_ID` in Vercel and redeploy.
+4. Turn on the sign-in methods you want under **Social Connections** and
+   **SSO Connections**. No code change is needed.
 
 ### Secrets
 
-Nothing secret lives in this repo. Client IDs and the public key in
-`manifest.config.ts` are safe to commit. `SESSION_JWT_SECRET`,
-`DATABASE_URL`, and any Clerk **secret** key live only in Vercel env
-vars. There is no root `.env` file to create — if you have a stray
-`.env.local` from earlier tooling, delete it (and rotate any key that was
-in it).
+No secrets are stored in this repo. Client IDs and the public key in
+`manifest.config.ts` are public by design. `SESSION_JWT_SECRET`,
+`DATABASE_URL` and any Clerk secret key live only in Vercel environment
+variables. There is no `.env` file to create.
 
 ---
 
 ## Using it
 
-- **Add a button:** sidebar → **Add** → **Prompt** or **Skill** → name +
-  text to insert. For a skill, the text is the slash-invocation itself
-  (e.g. `/doc-summary`); claude.ai's own autocomplete takes over after
-  insertion.
-- **Run a button:** click its name — the text is typed into claude.ai's
-  chat box and nothing else. You press Send.
+- **Add a button:** sidebar → **+ Add tool** → choose **Prompt** or
+  **Skill** → enter a name and the text to insert. For a skill, the text
+  is the slash command itself (e.g. `/doc-summary`); claude.ai's own
+  autocomplete takes over after insertion.
+- **Run a button:** click its name. The text is typed into claude.ai's
+  chat box and nothing else happens. You press Send.
 - **Reorder:** drag a row by its handle, or focus it and use Arrow
   Up/Down.
-- **Export / import:** Settings → Export writes a JSON file of all your
-  buttons; Import merges buttons from a JSON file into your list. Old
-  exports without a `type` import as Prompt.
+- **Tabs:** sort buttons into tabs (Writing, Code, …).
+- **Export / import:** Settings → **Export tools** saves all your buttons
+  to a JSON file; **Import tools** adds buttons from a JSON file to your
+  list.
 
 ### Demo data
 
-`examples/showcase.json` — 20 sample buttons across 5 tabs, for a
-personal-side demo. Settings → Import tools → pick the file.
+`examples/showcase.json` — 20 sample buttons across 5 tabs. Settings →
+Import tools → pick the file.
 
-`examples/org-seed.sql` — populates Manage Organisation (shared tabs and
-prompts, a sample roster, usage snapshots, prompt-run counters) for an
-org you've already created. See the comment at the top of that file for
-the one value you need to fill in and run in the Neon SQL Editor.
+`examples/org-seed.sql` — fills Manage Organisation (shared tabs and
+prompts, a sample roster, usage and run counts) for an existing
+organisation. The comment at the top of the file says which value to
+fill in before running it in the Neon SQL Editor.
 
 ---
 
 ## Organisations
 
-Signing in is optional; personal buttons never need it. Signing in adds a
-shared prompt list on top:
+Signing in is optional; personal buttons never need it.
 
-- **First sign-in at a company domain creates the organisation** and
-  makes that person its **admin**. Later sign-ins from the same domain
-  land in "waiting for approval" until an admin approves them. (The email
-  domain is whatever Clerk reports for the account, whichever method they
-  used to sign in.)
-- **Public email domains** (`gmail.com`, `outlook.com`, …) never
-  auto-join — each such sign-in starts its own separate organisation.
+- **The first sign-in from a company email domain creates the
+  organisation** and makes that person its **admin**. Later sign-ins from
+  the same domain become join requests ("Wants to join") that an admin
+  approves or declines.
+- **Public email domains** (`gmail.com`, `outlook.com`, …) never join
+  each other; each such sign-in starts its own organisation.
 - **Invites:** an admin can invite anyone by email. The invitee sees
   "<admin> invited you to join <org>" the next time they sign in and
-  **accepts or declines** — the admin can't accept for them, so nobody is
-  put into an organisation (or has their usage shared) without saying yes.
-- **Leaving:** a member can leave, a requester can cancel, and an invitee
-  can decline, from Settings at any time. The last admin must promote
-  someone else first.
+  **accepts or declines**. Nobody is added to an organisation, or has
+  their usage shared, without accepting.
+- **Leaving:** a member can leave, a requester can cancel and an invitee
+  can decline, from Settings. Leaving or being removed deletes that
+  person's usage data and run counts for the organisation. The last
+  admin must promote someone else before leaving.
 - **Admins** get **Manage Organisation** in Settings: approve or decline
-  same-domain join requests ("Wants to join"), invite anyone by email,
-  cancel invites, remove members, promote/demote admins, create/edit/delete
-  shared prompts and tabs, and see per-member usage and prompt-run
-  analytics. An organisation can never drop to zero admins.
-- **Shared tabs:** members see the org's shared prompts grouped under
-  the same clickable tab-chip buttons as their personal tabs (when the
-  org has more than one shared tab) — click a tab to see its prompts.
-- **Usage reporting:** while signed in, an approved member's
-  session/weekly/spend percentages (the same numbers the personal usage
-  widget shows) are reported periodically for admins to see. Stops on
-  sign-out.
+  join requests, invite people, cancel invites, remove members, promote
+  or demote admins, manage shared tabs and prompts, and see per-member
+  usage and prompt-run analytics. An organisation always keeps at least
+  one admin.
+- **Shared tabs:** members see the organisation's shared prompts as tabs
+  next to their personal ones.
+- **Usage reporting:** while signed in, an active member's session,
+  weekly and extra-usage percentages are reported for admins to see.
+  Reporting stops on sign-out or leaving.
 
-Every admin-only action is enforced **server-side**: the backend
-re-derives the caller's email from their verified identity token and
-re-checks their own membership row on every request. The client cannot
-assert its own email, org, role, or admin status. Cross-organisation
-isolation is enforced by Postgres row-level security
-(`FORCE ROW LEVEL SECURITY`), not just by `WHERE` clauses. **Every API
-route is rate-limited** (fixed window, in the `rate_limits` table — no
-extra service). Sign-in is limited per-IP before it does any token
-verification at all (a flood of invalid tokens can't run up Vercel
-invocations); onboarding, prompt-run and usage-report are limited
-per-authenticated-caller with a tighter, abuse-shape-specific window;
-every other route (org session, roster, shared tabs/prompts, analytics,
-usage) gets a generic per-IP ceiling via a shared `withRateLimit`
-wrapper (`backend/lib/with-rate-limit.ts`), also checked before the
-route's own logic runs.
+Security: every admin action is checked **on the server**. The backend
+works out the caller's email from their verified sign-in token and
+re-checks their membership on every request; the extension cannot claim
+an email, organisation or role. Organisations are isolated from each
+other by Postgres row-level security (`FORCE ROW LEVEL SECURITY`). Every
+API route is rate-limited (`backend/lib/with-rate-limit.ts`, stored in
+the `rate_limits` table), with sign-in limited per IP before any token
+is verified.
 
 ---
 
@@ -223,127 +216,127 @@ route's own logic runs.
 ```bash
 pnpm install
 pnpm run dev        # Vite dev build, watch mode
-pnpm run build      # tsc --noEmit + production build to dist/
-pnpm test           # Vitest (extension)
-pnpm run typecheck  # tsc --noEmit only
+pnpm run build      # typecheck + production build to dist/
+pnpm test           # extension unit tests (Vitest)
+pnpm run typecheck  # typecheck only
 
 cd backend && pnpm install && pnpm test && pnpm run typecheck
 ```
 
-`build.mjs` is a pnpm-free fallback (`node build.mjs`) for machines where
-the pnpm wrapper is broken; it runs the same `tsc` + `vite build`.
+`build.mjs` (`node build.mjs`) runs the same typecheck and build without
+pnpm.
 
 ### Architecture
 
-- **`src/background/service-worker.ts`** — enables the side panel only on
+- **`src/background/service-worker.ts`** — enables the side panel on
   claude.ai tabs.
-- **`src/content/`** — content script for claude.ai. `claude-adapter.ts`
-  finds the chat input and inserts text (never sends); `usage-widget.ts`
-  renders the usage rings; `content-script.ts` wires messages from the
-  sidebar and watches for an inserted prompt to actually be sent (for
-  analytics).
-- **`src/sidepanel/`** — the sidebar UI (vanilla TS + DOM). Button list,
-  add/edit form, drag-and-drop, tabs, settings, and the organisation
-  views. `render.ts` rebuilds the DOM per state; `main.ts` is the
+- **`src/content/`** — runs on claude.ai. `claude-adapter.ts` finds the
+  chat box and inserts text (never sends); `usage-widget.ts` draws the
+  usage rings; `content-script.ts` handles messages from the sidebar and
+  detects when an inserted prompt is actually sent (for analytics).
+- **`src/sidepanel/`** — the sidebar UI (plain TypeScript + DOM).
+  `render.ts` builds the page for the current state; `main.ts` is the
   controller.
-- **`src/shared/`** — shared model and services: `StorageAdapter` /
-  `ToolService` (button CRUD), `backup.ts` (export/import), `auth/`
-  (`ClerkAuthAdapter` — OAuth code + PKCE, backend session-token
-  exchange), and the `org-*` client modules.
+- **`src/shared/`** — shared model and services: button storage,
+  export/import (`backup.ts`), sign-in (`auth/`, OAuth with PKCE plus the
+  backend session token) and the `org-*` client modules.
 - **`backend/`** — Vercel serverless API over Neon Postgres. `lib/`
-  verifies tokens (`resolve-email`, `verify-clerk`, `jwt`) and resolves
-  the caller's org/role; `api/` is one file per route (kept under
-  Vercel's 12-function Hobby cap by consolidating related routes). See
-  `backend/README.md`.
+  verifies tokens and resolves the caller's organisation and role; `api/`
+  holds one file per route group. See `backend/README.md`.
 
 ## Testing
 
-`tests/` and `backend/lib/*.test.ts` cover the pure logic — storage,
-service, backup, token verification, org-state resolution, tab/reorder
-helpers.
+- **Unit tests:** `tests/` (extension) and `backend/lib/*.test.ts`
+  (backend).
+- **End-to-end:** `e2e/` runs the real built extension in a real
+  Chromium with Playwright: button management, tabs, keyboard reorder,
+  export/import, the admin, member, join-request and invite views
+  (against a mocked backend), and prompt insertion and send detection
+  using the exact compiled content script on a local copy of claude.ai's
+  chat box.
 
-`e2e/` drives the **real unpacked extension in a real Chromium** with
-Playwright (not a mocked DOM) — the pinned extension ID, button CRUD,
-skill badges, keyboard reorder, tab creation and the tab-picker dropdown,
-export/import (including a corrupt-file case), storage surviving a
-reload; via `e2e/mock-backend.ts` stubbing
-`chrome.identity.launchWebAuthFlow` and the backend's `fetch` responses,
-never a real Clerk account or the live Vercel backend, the director/
-member/pending organisation views (shared prompts, roster, analytics);
-and, via `e2e/claude-insertion.spec.ts` loading the exact compiled
-`content-script.ts` bundle that ships in the extension onto a local
-fixture page (never claude.ai itself — see that file's comment for why),
-real `execCommand`-based prompt insertion, the missing-chat-input error
-path, and send-detection (the input holding text then clearing) all
-running for real, not simulated. Run it:
+  ```bash
+  pnpm run build          # e2e loads dist/
+  pnpm run e2e:install    # one time: downloads Playwright's Chromium
+  pnpm run e2e
+  ```
 
-```bash
-pnpm run build        # e2e loads dist/, not source
-pnpm run e2e:install   # one-time: downloads the Chromium build Playwright drives
-pnpm run e2e
-```
-
-It opens real (visible) Chromium windows while it runs — Chrome extensions
-don't support a headless mode, so this can't run invisibly the way
-`vitest` does.
-
-**Not covered by `e2e/`**, still manual, via
-[`docs/qa-checklist.md`](docs/qa-checklist.md): whether Clerk, the real
-backend, and claude.ai's *actual* page structure still match what the
-mocks and the local fixture assume — none of that can be proven without
-running against the live deployment and the live site. The fixture in
-`claude-insertion.spec.ts` is our own approximation of claude.ai's chat
-input; if Anthropic changes that DOM, the fixture test keeps passing
-while the real extension breaks. What automated e2e now catches instead
-is regressions in our own insertion/send-detection code — historically
-the more common failure — not drift in a page we don't control.
-
-**CI** (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
-typecheck + the full test suite + `vite build` for the extension,
-typecheck + tests for `backend/`, and the `e2e/` suite in a headed
-Chromium under Xvfb. It catches a broken commit before it reaches
-`main` — it does not replace the manual checklist for the parts above
-that no automated test touches.
+  It opens visible Chromium windows while it runs (Chrome extensions
+  cannot run headless).
+- **Manual live check:** [`docs/qa-checklist.md`](docs/qa-checklist.md)
+  covers what automated tests cannot reach: real Clerk sign-in, the live
+  backend and the real claude.ai page. Run it before each release.
+- **CI** (`.github/workflows/ci.yml`) runs typecheck, all tests, the
+  build and the e2e suite on every push and pull request to `main`.
 
 ## Publishing to the Chrome Web Store
 
-Everything the Developer Dashboard asks for (descriptions, permission
-justifications, data-use answers, assets, and the production-switch steps)
-is in [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md).
-
 ```bash
-pnpm run build:store    # -> aire-extension-<version>.zip (no pinned key, ready to upload)
-pnpm run build && pnpm run store-assets   # regenerate screenshots + promo tile in store-assets/
+pnpm run build:store                     # creates aire-extension-<version>.zip (no pinned key) to upload
+pnpm run build && pnpm run store-assets  # regenerates screenshots + promo tile in store-assets/
 ```
 
-The privacy policy is served by the backend at `/privacy.html`
-(`backend/public/privacy.html`). Switching to production is two edits:
-`src/shared/api-base.ts` and `src/shared/auth/providers.ts` (the manifest's
-host permissions are derived from them).
+Everything the Developer Dashboard asks for (descriptions, permission
+justifications, data-use answers, assets) is in
+[`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md).
 
 ## Known limitations
 
-- **Depends on one claude.ai selector** (`[data-testid="chat-input"]`).
-  If Anthropic renames it, insertion and the usage widget break at the
-  same time; you'd see a clean "couldn't find Claude's chat box" error,
-  not a crash, but it needs a code fix regardless.
-- **Demo Alfabet font.** The bundled woff2 files are from a Fontspring
-  DEMO license with most punctuation and a few digits stripped from
-  their character map (see the comment in `style.css`) so the browser
-  falls back to a system font for those glyphs instead of drawing a
-  broken placeholder shape. Swap in AIRE's licensed webfont files before
-  any public/commercial release.
-- **Automated coverage stops at the boundary of third-party services**
-  (claude.ai, Clerk, the live backend), by design. `e2e/` (see Testing)
-  runs the real extension code — including the exact compiled
-  content-script bundle for insertion and send-detection — against local
-  mocks and fixtures, so everything this codebase controls is covered by
-  a real test, in a real browser. Running live tests with real
-  credentials against Anthropic's and Clerk's production services on
-  every commit isn't something any CI setup does safely: it means
-  storing live credentials in CI, scripting a third party's site on
-  every push, and mutating real backend data each run. The standard
-  practice for that boundary — used here too, via
-  [`docs/qa-checklist.md`](docs/qa-checklist.md) — is a manual pass
-  against the live deployment, the same way any team verifies the parts
-  that live outside their own infrastructure.
+- **One claude.ai selector.** Insertion and the usage rings depend on
+  claude.ai's chat box keeping `data-testid="chat-input"`. If claude.ai
+  changes it, the extension shows a "couldn't find Claude's chat box"
+  error and needs a code update.
+- **Demo font.** The bundled Alfabet font files are a demo licence with
+  most punctuation removed (system font is used for those characters).
+  Replace them with the licensed files before the public release.
+
+---
+
+## Before launch — what is still needed
+
+The code is finished. These items need a decision or an account from the
+company owner before the extension can be submitted to the Chrome Web
+Store.
+
+1. **A web address for sign-in.** A subdomain of the company domain (for
+   example `auth.getaiready.now`), plus access to the domain's DNS
+   settings so Clerk's production records can be added. This replaces
+   the Clerk test instance.
+2. **A company Chrome Web Store developer account.** Registered at
+   https://chrome.google.com/webstore/devconsole with a company Google
+   account (one-off US$5 fee), with the developer added to it. Also
+   needed:
+   - the **publisher name** shown on the store page
+   - a **contact email** that is monitored (Google sends review and
+     policy notices there, and it goes in the privacy policy)
+3. **The licensed Alfabet font files**, if the extension should use the
+   brand font. Otherwise it uses a standard system font.
+4. **Who can install it:**
+   - **Company only** — only the company's Google Workspace accounts
+     (requires Google Workspace)
+   - **Unlisted** — anyone with the link; not shown in search
+   - **Public** — anyone can find it in the store
+
+### Then, to submit
+
+1. Create the Clerk **production** instance on the sign-in domain, add
+   its DNS records, turn on the sign-in methods, and create a **Public
+   (PKCE)** OAuth application.
+2. Update `src/shared/auth/providers.ts` (`CLERK_DOMAIN`,
+   `CLERK_OAUTH_CLIENT_ID`) and the Vercel variables `CLERK_ISSUER` and
+   `CLERK_OAUTH_CLIENT_ID`; redeploy.
+3. Replace `[CONTACT EMAIL]` in `backend/public/privacy.html` and fill
+   the publisher details in `CHROMEWEBSTORE.md`.
+4. Swap in the licensed font (if provided) and run
+   `pnpm run build && pnpm run store-assets` to refresh the screenshots.
+5. Remove the test data from the database (the test organisation and
+   test accounts).
+6. `pnpm run build:store` and upload the zip to the developer dashboard
+   as a **draft**. Copy the extension ID the store assigns, and add
+   `https://<that-id>.chromiumapp.org/` as a redirect URI in the Clerk
+   OAuth application.
+7. Fill in the listing from `CHROMEWEBSTORE.md`, choose the visibility,
+   and **submit for review** (usually a few days).
+8. Once approved, share the store link with the team. Each person
+   installs it, opens claude.ai, and signs in with their work email to
+   join the organisation.
