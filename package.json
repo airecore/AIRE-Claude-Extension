@@ -1,7 +1,7 @@
 {
   "name": "claude-tools-sidebar",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "packageManager": "pnpm@11.2.2",
   "engines": {
@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",
     "e2e": "playwright test",
-    "e2e:install": "playwright install chromium"
+    "e2e:install": "playwright install chromium",
+    "build:store": "node scripts/package-store.mjs",
+    "store-assets": "node -e \"process.env.STORE_ASSETS='1'; require('child_process').execSync('npx playwright test e2e/store-assets',{stdio:'inherit',env:process.env})\""
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.1",

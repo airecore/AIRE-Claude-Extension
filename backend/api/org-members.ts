@@ -136,6 +136,9 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
         await sql.transaction([
           sql`SELECT set_config('app.current_org_id', ${orgId}, true)`,
           sql`DELETE FROM org_members WHERE org_id = ${orgId} AND lower(email) = lower(${targetEmail})`,
+          // Same as leaving: a removed person's usage data goes with them.
+          sql`DELETE FROM usage_snapshots WHERE org_id = ${orgId} AND lower(email) = lower(${targetEmail})`,
+          sql`DELETE FROM org_prompt_usage WHERE org_id = ${orgId} AND lower(email) = lower(${targetEmail})`,
         ])
       } else {
         await sql.transaction([

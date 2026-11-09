@@ -162,6 +162,14 @@ create policy usage_snapshots_update on usage_snapshots
   for update
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
+-- Leaving / being removed deletes your rows (org-session DELETE,
+-- org-members remove). Without this policy those deletes silently match
+-- nothing under FORCE ROW LEVEL SECURITY.
+drop policy if exists usage_snapshots_delete on usage_snapshots;
+create policy usage_snapshots_delete on usage_snapshots
+  for delete
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
 -- ===========================================================================
 -- Phase 5: organisation shared tabs, and Phase 9: prompt-run analytics.
 --
@@ -257,6 +265,14 @@ create policy org_prompt_usage_insert on org_prompt_usage
 drop policy if exists org_prompt_usage_update on org_prompt_usage;
 create policy org_prompt_usage_update on org_prompt_usage
   for update
+  using (org_id = current_setting('app.current_org_id', true)::uuid);
+
+-- Leaving / being removed deletes your rows (org-session DELETE,
+-- org-members remove). Without this policy those deletes silently match
+-- nothing under FORCE ROW LEVEL SECURITY.
+drop policy if exists org_prompt_usage_delete on org_prompt_usage;
+create policy org_prompt_usage_delete on org_prompt_usage
+  for delete
   using (org_id = current_setting('app.current_org_id', true)::uuid);
 
 -- Org-wide daily run totals, for the "runs over time" chart only. No

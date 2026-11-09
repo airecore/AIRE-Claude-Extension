@@ -7,3 +7,4 @@ docs/stage2-considerations.md
 test-results/
 playwright-report/
 playwright/.cache/
+*.zip

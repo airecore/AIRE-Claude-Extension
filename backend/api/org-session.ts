@@ -54,6 +54,10 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
       await sql.transaction([
         sql`SELECT set_config('app.current_org_id', ${membership.orgId}, true)`,
         sql`DELETE FROM org_members WHERE org_id = ${membership.orgId} AND lower(email) = lower(${email})`,
+        // Leaving takes your reported usage and per-prompt run counts with
+        // you (the privacy policy promises this).
+        sql`DELETE FROM usage_snapshots WHERE org_id = ${membership.orgId} AND lower(email) = lower(${email})`,
+        sql`DELETE FROM org_prompt_usage WHERE org_id = ${membership.orgId} AND lower(email) = lower(${email})`,
       ])
       res.status(204).end()
     } catch (error) {

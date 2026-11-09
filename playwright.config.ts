@@ -7,6 +7,8 @@ import { defineConfig } from '@playwright/test'
 // these (`pnpm run e2e` does that for you).
 export default defineConfig({
   testDir: './e2e',
+  // Store screenshots are generated on demand (pnpm run store-assets), not on every test run.
+  testIgnore: process.env.STORE_ASSETS ? [] : ['**/store-assets/**'],
   timeout: 30_000,
   fullyParallel: false, // each test launches its own browser+profile; keep it light
   retries: process.env.CI ? 1 : 0,

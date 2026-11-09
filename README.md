@@ -305,6 +305,22 @@ Chromium under Xvfb. It catches a broken commit before it reaches
 `main` — it does not replace the manual checklist for the parts above
 that no automated test touches.
 
+## Publishing to the Chrome Web Store
+
+Everything the Developer Dashboard asks for (descriptions, permission
+justifications, data-use answers, assets, and the production-switch steps)
+is in [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md).
+
+```bash
+pnpm run build:store    # -> aire-extension-<version>.zip (no pinned key, ready to upload)
+pnpm run build && pnpm run store-assets   # regenerate screenshots + promo tile in store-assets/
+```
+
+The privacy policy is served by the backend at `/privacy.html`
+(`backend/public/privacy.html`). Switching to production is two edits:
+`src/shared/api-base.ts` and `src/shared/auth/providers.ts` (the manifest's
+host permissions are derived from them).
+
 ## Known limitations
 
 - **Depends on one claude.ai selector** (`[data-testid="chat-input"]`).
