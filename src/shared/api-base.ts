@@ -6,4 +6,4 @@
  * adapter can import it without the auth layer having to depend on an
  * org module.
  */
-export const API_BASE_URL = 'https://claude-extension-git-main-luxqees-projects.vercel.app'
+export const API_BASE_URL = 'https://claude-extension-xi.vercel.app'

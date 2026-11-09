@@ -103,7 +103,7 @@ licensed font is swapped in.
 
 **Privacy Policy URL**: `<backend URL>/privacy.html` — served from
 `backend/public/privacy.html`. Currently
-https://claude-extension-git-main-luxqees-projects.vercel.app/privacy.html;
+https://claude-extension-xi.vercel.app/privacy.html;
 update after the production backend URL is set.
 **TODO**: fill in the contact email in that file (`[CONTACT EMAIL]`).
 
