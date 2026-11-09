@@ -1,8 +1,8 @@
 # Chrome Web Store Listing — AIRE Extension
 
 > Last Updated: 2026-11-09. Everything the Chrome Developer Dashboard asks
-> for, ready to copy-paste. Items marked **TODO** need a decision from the
-> publisher before submitting.
+> for, ready to copy-paste. Items marked **NEEDED** come from the company
+> owner; see [Before launch](README.md#before-launch--what-is-still-needed) in the README.
 
 ## Store Listing
 
@@ -105,7 +105,7 @@ licensed font is swapped in.
 `backend/public/privacy.html`. Currently
 https://claude-extension-xi.vercel.app/privacy.html;
 update after the production backend URL is set.
-**TODO**: fill in the contact email in that file (`[CONTACT EMAIL]`).
+**NEEDED**: fill in the contact email in that file (`[CONTACT EMAIL]`).
 
 ## Distribution
 
@@ -115,9 +115,9 @@ rollout, or Unlisted (anyone with the link). Public later if wanted.
 
 ## Developer Info
 
-**Publisher Name**: **TODO** (e.g. AIRE / Get AI Ready — use a company-owned developer account)
-**Contact Email**: **TODO** (monitored — Google sends policy notices here)
-**Support URL / Email**: **TODO**
+**Publisher Name**: **NEEDED** (company-owned developer account)
+**Contact Email**: **NEEDED** (monitored — Google sends policy notices here)
+**Support URL / Email**: **NEEDED**
 **Homepage URL**: https://getaiready.now/au
 
 ## Version History
@@ -128,17 +128,11 @@ rollout, or Unlisted (anyone with the link). Public later if wanted.
 
 ## Review Notes
 
-### Before submitting (production switch)
-1. Clerk production instance on a company domain; Public (PKCE) OAuth
-   application; redirect URI `https://<store-extension-id>.chromiumapp.org/`.
-2. Edit `src/shared/api-base.ts` (production backend URL) and
-   `src/shared/auth/providers.ts` (Clerk production domain + client ID).
-   The manifest's host permissions follow automatically.
-3. Vercel env vars: `CLERK_ISSUER`, `CLERK_OAUTH_CLIENT_ID` for production.
-4. `pnpm run build:store` → upload `aire-extension-1.0.0.zip`.
-
-The store assigns the extension ID on the first (draft) upload: upload once,
-note the ID, add its redirect URI in Clerk, rebuild, re-upload, then submit.
+### Before submitting
+Follow the step-by-step list in [Before launch](README.md#before-launch--what-is-still-needed)
+in the README: Clerk production instance, the two config edits, contact
+email, licensed font, test-data cleanup, draft upload to get the store
+extension ID, its Clerk redirect URI, then submit.
 
 ### Known Issues / Limitations
 - Depends on claude.ai's chat input staying recognisable

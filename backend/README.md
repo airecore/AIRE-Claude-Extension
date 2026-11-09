@@ -1,118 +1,48 @@
-# Claude Tools Backend
+# AIRE Extension — Backend
 
-Minimal Vercel serverless API backing the Claude Tools Sidebar extension's
-Phase 2 (company login + centralized prompt storage). See the design spec
-at `../docs/superpowers/specs/2026-08-18-phase2-login-team-storage-design.md`
-for the full picture — this file just covers running and deploying this
-directory.
+Vercel serverless API over Neon Postgres. It powers the extension's
+optional organisation features: sign-in sessions, shared prompts and
+tabs, membership and invites, usage reporting and admin analytics. It
+also serves the privacy policy (`public/privacy.html`).
+
+Live at https://claude-extension-xi.vercel.app (Vercel project
+`claude-extension`, Root Directory `backend`, deploys on every push to
+`main`).
+
+In the API, an admin is stored as role `director`.
 
 ## Environment variables
 
-Set these in the Vercel project's Settings -> Environment Variables:
+Set in Vercel → Settings → Environment Variables, then redeploy:
 
-- `DATABASE_URL` -- a Neon Postgres connection string.
-- `SESSION_JWT_SECRET` -- a long random string (e.g. `openssl rand -hex 32`).
-  Used to sign and verify the backend session tokens the extension gets
-  from `POST /api/auth/session` and then sends on every other call. Keep
-  it secret; it never ships in the extension. If it is unset the API
-  still works -- it just falls back to verifying a Clerk id_token on
-  every request, the pre-session-token behaviour.
-- `CLERK_ISSUER` -- the Clerk instance's Frontend API origin, e.g.
-  `https://innocent-lamb-6401.clerk.accounts.dev` (dev) or your custom
-  domain (prod). Same value as `CLERK_DOMAIN` in `providers.ts` with the
-  `https://` prefix. Clerk id_tokens are verified against
-  `${CLERK_ISSUER}/.well-known/jwks.json`.
-- `CLERK_OAUTH_CLIENT_ID` -- from the Clerk OAuth application (below).
-- `CLERK_OAUTH_CLIENT_SECRET` -- leave unset. Only needed if the Clerk
-  OAuth application is Confidential rather than Public/PKCE, and it
-  should be Public (see below). Sending a secret to a Public application
-  -- or omitting it for a Confidential one -- both fail sign-in with
-  `invalid_client` / "Client authentication failed"; if you see that
-  error, this is the first thing to check.
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Neon connection string. Must be a plain non-superuser role without `BYPASSRLS`. |
+| `SESSION_JWT_SECRET` | output of `openssl rand -hex 32`. Signs the 14-day session tokens the extension receives from `POST /api/auth/session`. |
+| `CLERK_ISSUER` | Clerk instance origin, e.g. `https://innocent-lamb-6401.clerk.accounts.dev`. Same as `CLERK_DOMAIN` in `src/shared/auth/providers.ts` with `https://`. Clerk tokens are verified against `${CLERK_ISSUER}/.well-known/jwks.json`. |
+| `CLERK_OAUTH_CLIENT_ID` | Client ID of the Clerk OAuth application. |
 
-### Clerk sign-in setup
+Do not set `CLERK_OAUTH_CLIENT_SECRET`: the Clerk OAuth application must
+be **Public (PKCE)**. A Confidential application makes sign-in fail with
+"Client authentication failed".
 
-Sign-in goes entirely through Clerk. One OAuth application fans out to
-Google / GitHub / Microsoft / email / SSO -- whichever connections are
-enabled in the dashboard.
+Clerk setup (OAuth application, redirect URIs, sign-in methods) is in the
+main [README](../README.md#2-clerk-sign-in).
 
-1. In the Clerk Dashboard: **Configure -> OAuth Applications -> New
-   application**. Scopes: `openid`, `email`, `profile`. Redirect URI
-   `https://fhaeedmmhjjkhnopifppigddjbbmdegh.chromiumapp.org/`. Public
-   client (PKCE) -- no client secret needed by the extension.
-2. Copy the **Client ID** into `CLERK_OAUTH_CLIENT_ID` in
-   `src/shared/auth/providers.ts` and confirm `CLERK_DOMAIN` there
-   matches your instance.
-3. Set `CLERK_ISSUER` (and `CLERK_OAUTH_CLIENT_SECRET` if the app is
-   confidential) in Vercel and redeploy.
-4. Add the Clerk instance host to `host_permissions` in
-   `manifest.config.ts` if your instance domain differs from the default.
-5. Turn on the sign-in methods you want under **Social Connections** and
-   **SSO Connections**. Clerk's dev instance (`*.clerk.accounts.dev`) has
-   no allow-list -- any tester can sign in with an enabled method, no
-   per-tester step.
+## Database
 
-The extension ID is pinned (`key` in `manifest.config.ts`), so every
-build of this repo has the same ID and the redirect URI above is
-registered **once, ever** -- not per machine.
+Run `schema.sql` in the Neon SQL Editor (or
+`psql "$DATABASE_URL" -f schema.sql`). It is safe to re-run and brings an
+existing database up to date, so re-run it whenever it changes.
 
-## Database setup
+Organisations are isolated by row-level security (`force row level
+security` on every table that holds organisation data), on top of the `WHERE org_id = ...`
+filters in the API code. Writes set `app.current_org_id` in the same
+transaction so the policies apply.
 
-Run `schema.sql` once against your Neon database before the API will work:
-
-```bash
-psql "$DATABASE_URL" -f schema.sql
-```
-
-Isolation between organizations depends on `schema.sql`'s
-`force row level security` line, not just the `WHERE org_id = ...` clause
-in the API code -- defense-in-depth is the point. Note that this only
-holds as long as the role in `DATABASE_URL` is a plain, non-superuser role
-without the `BYPASSRLS` attribute; either of those would silently defeat
-`FORCE ROW LEVEL SECURITY` and re-open cross-tenant access. Once real data
-exists, it's worth manually verifying: seed two organizations with
-different domains and their own prompts, sign in as a user at each
-domain, and confirm each only ever sees their own organization's prompts,
-never the other's.
-
-If you're migrating an existing database from Phase 2C rather than
-starting fresh, first run:
-
-```sql
-alter table organizations drop constraint organizations_domain_key;
-```
-
-then apply everything from the `create policy org_update on prompts` line
-onward in `schema.sql`. Start at that line, **not** at
-`create table org_members`: `prompts` is under
-`force row level security`, and RLS default-denies any command with no
-matching policy, so skipping the `org_update`/`org_delete` policies makes
-every director prompt edit and delete match zero rows and silently do
-nothing.
-
-If you already applied an earlier version of this phase's `schema.sql`
-that had the case-sensitive `unique (org_id, email)` constraint on
-`org_members`, replace it with the case-insensitive index (delete any
-rows that differ only by email case first):
-
-```sql
-update org_members set email = lower(email) where email <> lower(email);
-alter table org_members drop constraint org_members_org_id_email_key;
-create unique index org_members_org_email_key on org_members (org_id, lower(email));
-```
-
-Organizations, membership, and prompts are now created and managed
-through the API (`POST /api/org-onboarding`, the `org_members` and
-`org_prompts` endpoints — see below) rather than by hand. Direct SQL
-seeding is still useful for local testing:
-
-```sql
-insert into organizations (name, domain) values ('Your Company', 'yourcompany.com')
-returning id;
--- then, using the returned id:
-insert into org_members (org_id, email, role, status) values
-  ('<org-id>', 'you@yourcompany.com', 'director', 'active');
-```
+Organisations, members and prompts are created through the API and the
+extension. `../examples/org-seed.sql` fills an existing organisation with
+demo data.
 
 ## Local development
 
@@ -122,15 +52,8 @@ pnpm typecheck
 pnpm test
 ```
 
-There's no local Vercel dev server assumed by this project's workflow --
-the API is verified by deploying and calling the live endpoint.
-
-## Deploying
-
-Either:
-- Connect this GitHub repo to a Vercel project with **Root Directory** set
-  to `backend`, so every push to `main` deploys automatically, or
-- Run `vercel deploy` from inside this directory using the Vercel CLI.
+The API is verified by the unit tests and by the deployed endpoints;
+there is no local server step.
 
 ## API
 
@@ -156,8 +79,17 @@ Authorization: Bearer <token>
 
 200 -> { "state": "active", "org": { "id": "...", "name": "..." }, "role": "director" | "member" }
 200 -> { "state": "pending", "org": { "id": "...", "name": "..." } }
+200 -> { "state": "invited", "org": { "id": "...", "name": "..." }, "invitedBy": "admin@b.com" | null }
 200 -> { "state": "needs_onboarding" }
 401 -> token missing or invalid
+
+POST   /api/org-session   { "action": "accept-invite" }   (invitee only)
+200 -> { "state": "active", "org": { ... }, "role": "member" }
+404 -> no pending invite
+
+DELETE /api/org-session      leave the organisation, cancel a join request, or decline an invite
+204 -> done (membership, usage reports and run counts deleted)
+400 -> caller is the last admin
 ```
 
 ```
@@ -178,7 +110,10 @@ GET  /api/org-members                                    (director-only)
 403 -> caller is not an active director
 
 POST /api/org-members   { "action", "email", "role"? }   (director-only)
-  action = "add" | "approve" | "remove" | "set-role"
+  action = "add"      -> invites the email (status invited; they accept on next sign-in)
+           "approve"  -> approves a same-domain join request (status pending)
+           "remove"   -> removes a member, request or invite, and their usage data
+           "set-role" -> promotes/demotes an active member ("director" = admin)
   -> 204 | 400 (last director / unknown action) | 404 (not in this org)
 ```
 

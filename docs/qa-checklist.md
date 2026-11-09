@@ -1,8 +1,8 @@
 # Manual QA checklist
 
-The sidebar UI, the content script, and everything that touches claude.ai's
-live DOM have **no automated coverage** (deliberate — see the README).
-Run this pass in a real Chrome before handing a build to testers, and
+The automated tests (unit + `e2e/`) cover the extension against mocks and a
+local copy of claude.ai's chat box. This pass checks the parts they cannot:
+the real claude.ai page, real Clerk sign-in and the live backend. Run it in a real Chrome before handing a build to testers, and
 again after any change to `src/content/`, `src/sidepanel/`, or the
 manifest.
 
@@ -37,8 +37,8 @@ open a fresh claude.ai tab.
 
 ## 3. Backup
 
-- [ ] Settings → Export → a `.json` file downloads with every button.
-- [ ] Import that file → buttons are added (not duplicated away), tabs preserved.
+- [ ] Settings → **Export tools** → a `.json` file downloads with every button.
+- [ ] **Import tools** with that file → buttons are added (not duplicated away), tabs preserved.
 - [ ] Import a hand-broken file (invalid JSON) → clean error, no crash, existing buttons untouched.
 - [ ] Import a bare v1 array (no `type`) → entries import as Prompt into "General".
 
