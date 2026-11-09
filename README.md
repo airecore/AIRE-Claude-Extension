@@ -20,7 +20,7 @@ You need **Node.js 20 or 22 LTS** and **pnpm 9+**. Node 24 currently
 breaks pnpm's pre-run step on some machines; stick to an LTS release.
 
 ```bash
-git clone https://github.com/luxqee/Claude-Extension.git
+git clone https://github.com/airecore/AIRE-Claude-Extension.git
 cd Claude-Extension
 pnpm install
 pnpm run build
