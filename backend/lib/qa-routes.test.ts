@@ -220,3 +220,27 @@ describe('POST /api/qa-dashboard retry-issues', async () => {
     expect(res.statusCode).toBe(400)
   })
 })
+
+describe('POST /api/qa-dashboard import-events', async () => {
+  const handler = (await import('../api/qa-dashboard.js')).default
+  const tourEvent = { kind: 'event', name: 'tab_deleted', source: 'sidepanel', at: Date.now(), version: '1.0.0+abc', browser: 'Chrome 131' }
+
+  it('needs the dashboard key', async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'import-events', events: [tourEvent] }, { authorization: 'Bearer nope' }), res)
+    expect(res.statusCode).toBe(401)
+    expect(queries.some((q) => q.includes('INSERT INTO qa_events'))).toBe(false)
+  })
+
+  it('files the events under the automated tester, labelled as automated', async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'import-events', events: [tourEvent, { bad: true }] }, { authorization: 'Bearer right-key' }), res)
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual({ imported: 1, dropped: 1 })
+    const insert = queries.find((q) => q.includes('INSERT INTO qa_events'))!
+    expect(insert).toContain('"automated-tour"')
+    expect(insert).toContain('Chrome 131 (automated tour)')
+  })
+})

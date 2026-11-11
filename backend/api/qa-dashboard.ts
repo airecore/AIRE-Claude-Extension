@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { withRateLimit } from '../lib/with-rate-limit.js'
-import { buildFeedbackIssue, isDashboardKeyValid, QA_EVENT_CATALOGUE, type DiagnosticLine, type FeedbackCategory } from '../lib/qa.js'
+import { buildFeedbackIssue, errorFingerprint, isDashboardKeyValid, parseQaEventBatch, QA_EVENT_CATALOGUE, type DiagnosticLine, type FeedbackCategory } from '../lib/qa.js'
 import { checkGithubIssues, DEFAULT_FEEDBACK_REPO, openGithubIssue, withMissingIssues } from '../lib/github-issue.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
@@ -26,6 +26,36 @@ const sql = neon(process.env.DATABASE_URL ?? '')
 // 200 -> { results: [ { id, issueUrl } | { id, error } ] }
 
 const RETRY_LIMIT = 20
+
+// POST /api/qa-dashboard  { action: 'import-events', events: [...] }  (same key)
+// Records events from the automated feature tour (e2e/feature-tour.spec.ts),
+// which drives the real extension in Chromium but can't sign in for real.
+// Always filed under this tester and with "(automated tour)" on the
+// browser, so they're never mistaken for a real person's testing.
+const AUTOMATED_TESTER = 'automated-tour'
+
+async function importEvents(body: unknown, res: VercelResponse): Promise<void> {
+  const batch = parseQaEventBatch(body)
+  if (!batch) {
+    res.status(400).json({ error: 'body must include events: [...]' })
+    return
+  }
+  if (batch.events.length > 0) {
+    await sql.transaction(
+      batch.events.map(
+        (e) => sql`
+          INSERT INTO qa_events (email, kind, name, source, occurred_at, version, browser, props, message, stack, fingerprint)
+          VALUES (
+            ${AUTOMATED_TESTER}, ${e.kind}, ${e.name}, ${e.source}, ${e.at.toISOString()}, ${e.version},
+            ${`${e.browser} (automated tour)`.slice(0, 80)}, ${JSON.stringify(e.props)}::jsonb, ${e.message}, ${e.stack},
+            ${e.kind === 'error' ? errorFingerprint(e) : null}
+          )
+        `,
+      ),
+    )
+  }
+  res.status(200).json({ imported: batch.events.length, dropped: batch.dropped })
+}
 
 async function retryIssues(res: VercelResponse): Promise<void> {
   const rows = (await sql`
@@ -75,14 +105,16 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   }
 
   if (req.method === 'POST') {
-    if ((req.body as { action?: unknown } | undefined)?.action !== 'retry-issues') {
+    const action = (req.body as { action?: unknown } | undefined)?.action
+    if (action !== 'retry-issues' && action !== 'import-events') {
       res.status(400).json({ error: 'unknown action' })
       return
     }
     try {
-      await retryIssues(res)
+      if (action === 'retry-issues') await retryIssues(res)
+      else await importEvents(req.body, res)
     } catch (error) {
-      console.error('[qa-dashboard] retry failed', error)
+      console.error(`[qa-dashboard] ${action} failed`, error)
       res.status(500).json({ error: 'internal error' })
     }
     return

@@ -61,6 +61,8 @@ export async function mockClerkAndBackend(page: Page, scenario: OrgScenario): Pr
           json: { sessionToken: 'mock-session-token', email: scenario.email, expiresAt: FAR_FUTURE },
         })
       case '/api/org-session': {
+        // DELETE = leave / decline / cancel; the real server answers 204.
+        if (route.request().method() === 'DELETE') return route.fulfill({ status: 204 })
         const body = route.request().postData()
         if (body && body.includes('accept-invite') && scenario.acceptedSession) {
           scenario.orgSession = scenario.acceptedSession
