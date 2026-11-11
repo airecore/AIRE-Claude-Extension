@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { withRateLimit } from '../lib/with-rate-limit.js'
 import { buildFeedbackIssue, isDashboardKeyValid, QA_EVENT_CATALOGUE, type DiagnosticLine, type FeedbackCategory } from '../lib/qa.js'
-import { checkGithubIssues, DEFAULT_FEEDBACK_REPO, openGithubIssue } from '../lib/github-issue.js'
+import { checkGithubIssues, DEFAULT_FEEDBACK_REPO, openGithubIssue, withMissingIssues } from '../lib/github-issue.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -160,7 +160,7 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({
       days,
-      github: await githubCheck,
+      github: withMissingIssues(await githubCheck, feedback.filter((f) => !f.github_issue_url).length),
       defects: defects.map((d) => ({
         fingerprint: d.fingerprint,
         source: d.source,

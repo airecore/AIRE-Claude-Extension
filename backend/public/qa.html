@@ -66,6 +66,8 @@
   .status { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 14px; border: 1px solid var(--border); background: var(--surface); }
   .status.working { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
   .status.failing { color: var(--danger); background: var(--danger-bg); border-color: transparent; }
+  .status.warning { color: #8a5a00; background: #fdf3dc; border-color: transparent; }
+  @media (prefers-color-scheme: dark) { .status.warning { color: #f0c36a; background: #3a2e14; } }
   .error { color: var(--danger); background: var(--danger-bg); padding: 10px 12px; border-radius: 8px; }
   .empty { color: var(--muted); font-style: italic; }
 </style>
@@ -137,7 +139,7 @@
     const refresh = el('button', { type: 'button', text: 'Refresh' }); refresh.addEventListener('click', load)
     const forget = el('button', { type: 'button', text: 'Forget key' }); forget.addEventListener('click', () => { save(''); keyInput.value = ''; out.replaceChildren(); form.hidden = false })
     if (data.github && data.github.state) {
-      const label = { working: 'GitHub issues: working', not_configured: 'GitHub issues: not set up', failing: 'GitHub issues: failing' }[data.github.state] || 'GitHub issues'
+      const label = { working: 'GitHub issues: working', warning: 'GitHub issues: check needed', not_configured: 'GitHub issues: not set up', failing: 'GitHub issues: failing' }[data.github.state] || 'GitHub issues'
       out.append(el('p', { class: `status ${data.github.state}` }, el('strong', { text: label }), ` ${data.github.detail || ''}`))
     }
     out.append(el('div', { class: 'toolbar' }, daySelect, refresh, forget, el('span', { class: 'muted small', text: `Updated ${new Date().toLocaleTimeString()}` })))

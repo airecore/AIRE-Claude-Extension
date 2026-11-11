@@ -31,6 +31,7 @@ vi.mock('./rate-limit.js', () => ({
 vi.mock('./github-issue.js', () => ({
   createGithubIssue: mockCreateIssue,
   openGithubIssue: mockOpenIssue,
+  withMissingIssues: (status: unknown) => status,
   DEFAULT_FEEDBACK_REPO: 'airecore/AIRE-QA-Feedback',
   checkGithubIssues: async () => ({ state: 'not_configured', detail: 'not set' }),
 }))

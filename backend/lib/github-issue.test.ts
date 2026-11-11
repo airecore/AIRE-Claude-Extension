@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { checkGithubIssues, createGithubIssue, openGithubIssue } from './github-issue'
+import { checkGithubIssues, createGithubIssue, openGithubIssue, withMissingIssues } from './github-issue'
 
 const issue = { title: 'T', body: 'B', labels: ['tester-feedback', 'bug'] }
 
@@ -98,5 +98,19 @@ describe('openGithubIssue', () => {
     expect(await openGithubIssue(issue, 't', 'a/b', vi.fn(async () => response(410)))).toEqual({ error: expect.stringMatching(/turned off/) })
     expect(await openGithubIssue(issue, 't', 'a/b', vi.fn(async () => response(401)))).toEqual({ error: expect.stringMatching(/expired/) })
     expect(await openGithubIssue(issue, '', 'a/b')).toEqual({ error: expect.stringMatching(/QA_GITHUB_TOKEN/) })
+  })
+})
+
+describe('withMissingIssues', () => {
+  const working = { state: 'working' as const, detail: 'ok' }
+  it('keeps "working" when every recent report has its issue', () => {
+    expect(withMissingIssues(working, 0)).toBe(working)
+  })
+  it('warns when reports are missing issues, since the check only proves read access', () => {
+    expect(withMissingIssues(working, 2)).toEqual({ state: 'warning', detail: expect.stringMatching(/2 recent reports have no issue/) })
+  })
+  it('leaves failing and not-configured statuses alone', () => {
+    const failing = { state: 'failing' as const, detail: 'x' }
+    expect(withMissingIssues(failing, 3)).toBe(failing)
   })
 })

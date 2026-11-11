@@ -118,6 +118,7 @@ export async function createGithubIssue(
 
 export type GithubIssuesStatus =
   | { state: 'not_configured'; detail: string }
+  | { state: 'warning'; detail: string }
   | { state: 'working'; detail: string }
   | { state: 'failing'; detail: string }
 
@@ -159,5 +160,19 @@ export async function checkGithubIssues(token: string, repo: string, fetchImpl: 
     return { state: 'failing', detail: `${hint} (GitHub ${response.status}${message ? `: ${message}` : ''})` }
   } catch {
     return { state: 'failing', detail: "Couldn't reach GitHub to check the token." }
+  }
+}
+
+/**
+ * The read-only check above can't prove the token may CREATE issues. If
+ * recent feedback is still missing its issue, say so instead of "working".
+ */
+export function withMissingIssues(status: GithubIssuesStatus, missing: number): GithubIssuesStatus {
+  if (status.state !== 'working' || missing === 0) return status
+  return {
+    state: 'warning',
+    detail:
+      `The token can read issues, but ${missing} recent report${missing === 1 ? ' has' : 's have'} no issue, ` +
+      'so creating them may be failing. Press "Retry GitHub issues" under Feedback to see GitHub\'s reason.',
   }
 }
