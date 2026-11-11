@@ -3,6 +3,7 @@ import { QA_ENABLED, buildLabel } from '../shared/qa/config'
 import { sendFeedback, type FeedbackInput } from '../shared/qa/feedback'
 import type { FeedbackState } from './FeedbackForm'
 import { ToolService } from '../shared/tool-service'
+import { sendToClaudeTab } from '../shared/claude-tab'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
 import { ClerkAuthAdapter } from '../shared/auth/clerk-auth-adapter'
 import type { ProviderId } from '../shared/auth/providers'
@@ -16,7 +17,7 @@ import {
 } from './render'
 import type { Button, ToolTab } from '../shared/types'
 import type { LibraryItem } from '../shared/library'
-import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
+import type { InsertPromptRequest, GetUsageRequest, GetUsageResponse } from '../shared/messages'
 import { parseBackup, serializeBackup } from '../shared/backup'
 import { getTabPrefs, setActiveTab, setDefaultTab, resolveActiveTabId } from '../shared/tab-prefs'
 import {
@@ -412,19 +413,14 @@ async function refresh(root: HTMLElement): Promise<void> {
             prompt: button.prompt,
             runToken,
           }
-          let response: InsertPromptResponse
-          try {
-            response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
-              tab.id,
-              request,
-            )
-          } catch (error) {
-            console.error('[Claude Tools] failed to reach content script', error)
+          const sent = await sendToClaudeTab(tab.id, request)
+          if (!sent.ok) {
             runState.set(button.id, { isRunning: false, error: 'Reload the Claude tab and try again.' })
             announce('Reload the Claude tab and try again.')
             if (view.mode === 'list') await refresh(root)
             return
           }
+          const response = sent.response
 
           if (response.ok) {
             runState.set(button.id, { isRunning: false, error: null })
@@ -1080,17 +1076,12 @@ async function refresh(root: HTMLElement): Promise<void> {
               prompt: prompt.promptText,
               runToken,
             }
-            let response: InsertPromptResponse
-            try {
-              response = await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(
-                tab.id,
-                request,
-              )
-            } catch (error) {
-              console.error('[Claude Tools] failed to reach content script', error)
+            const sent = await sendToClaudeTab(tab.id, request)
+            if (!sent.ok) {
               fail('Reload the Claude tab and try again.')
               return
             }
+            const response = sent.response
             if (response.ok) {
               announce(`Inserted ${prompt.name}.`)
               qaTrack('team_prompt_run', { type: prompt.type })

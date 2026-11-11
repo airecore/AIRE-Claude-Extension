@@ -48,7 +48,9 @@ const manifest: ExtensionManifest = {
     '48': 'src/icons/icon-48.png',
     '128': 'src/icons/icon-128.png',
   },
-  permissions: ['sidePanel', 'storage', 'identity'],
+  // scripting: re-adds the content script to a claude.ai tab that was open
+  // before the extension was installed or updated (src/shared/claude-tab.ts).
+  permissions: ['sidePanel', 'storage', 'identity', 'scripting'],
   host_permissions: [
     'https://claude.ai/*',
     // Backend and Clerk hosts come from the same constants the code uses,
