@@ -138,7 +138,10 @@ export class ClerkAuthAdapter implements AuthAdapter {
             },
       )
     } catch (error) {
-      if (interactive) {
+      if (interactive && isUserCancel(error)) {
+        // Closing the sign-in window is a choice, not a defect.
+        console.info('[Claude Tools] sign-in was cancelled')
+      } else if (interactive) {
         console.error('[Claude Tools] Clerk sign-in flow failed', error)
       } else {
         console.debug('[Claude Tools] silent Clerk token refresh not possible', error)
@@ -203,4 +206,10 @@ export class ClerkAuthAdapter implements AuthAdapter {
     await clearSession()
     return null
   }
+}
+
+/** Chrome's message when the person closes or dismisses the sign-in window. */
+export function isUserCancel(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return /did not approve access|user cancel|window was closed/i.test(message)
 }

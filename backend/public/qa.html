@@ -63,6 +63,9 @@
   .bar span { display: block; width: 100%; border-radius: 2px 2px 0 0; }
   .bar .ev { background: var(--accent); opacity: 0.75; }
   .bar .er { background: var(--danger); }
+  .status { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 14px; border: 1px solid var(--border); background: var(--surface); }
+  .status.working { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+  .status.failing { color: var(--danger); background: var(--danger-bg); border-color: transparent; }
   .error { color: var(--danger); background: var(--danger-bg); padding: 10px 12px; border-radius: 8px; }
   .empty { color: var(--muted); font-style: italic; }
 </style>
@@ -108,6 +111,7 @@
     const d = new Date(iso)
     return d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
+  const plural = (n, word) => (n === 1 ? word : `${word}s`)
   const safeIssueUrl = (url) => typeof url === 'string' && url.startsWith('https://github.com/') ? url : null
 
   function section(title, count, ...body) {
@@ -132,16 +136,20 @@
     daySelect.addEventListener('change', () => { days = Number(daySelect.value); load() })
     const refresh = el('button', { type: 'button', text: 'Refresh' }); refresh.addEventListener('click', load)
     const forget = el('button', { type: 'button', text: 'Forget key' }); forget.addEventListener('click', () => { save(''); keyInput.value = ''; out.replaceChildren(); form.hidden = false })
+    if (data.github && data.github.state) {
+      const label = { working: 'GitHub issues: working', not_configured: 'GitHub issues: not set up', failing: 'GitHub issues: failing' }[data.github.state] || 'GitHub issues'
+      out.append(el('p', { class: `status ${data.github.state}` }, el('strong', { text: label }), ` ${data.github.detail || ''}`))
+    }
     out.append(el('div', { class: 'toolbar' }, daySelect, refresh, forget, el('span', { class: 'muted small', text: `Updated ${new Date().toLocaleTimeString()}` })))
 
     const stat = (value, label) => el('div', { class: 'stat' }, el('div', { class: 'value', text: String(value) }), el('div', { class: 'label', text: label }))
     out.append(el('div', { class: 'stats' },
-      stat(data.defects.length, 'distinct defects'),
-      stat(errorsTotal, 'error occurrences'),
-      stat(data.feedback.length, 'feedback reports'),
-      stat(data.testers.length, 'active testers'),
-      stat(eventsTotal, 'usage events'),
-      stat(data.notExercised.length, 'features not yet tried')))
+      stat(data.defects.length, plural(data.defects.length, 'distinct defect')),
+      stat(errorsTotal, plural(errorsTotal, 'error occurrence')),
+      stat(data.feedback.length, plural(data.feedback.length, 'feedback report')),
+      stat(data.testers.length, plural(data.testers.length, 'active tester')),
+      stat(eventsTotal, plural(eventsTotal, 'usage event')),
+      stat(data.notExercised.length, data.notExercised.length === 1 ? 'feature not yet tried' : 'features not yet tried')))
 
     if (data.daily.length > 0) {
       const max = Math.max(1, ...data.daily.map((d) => d.events + d.errors))

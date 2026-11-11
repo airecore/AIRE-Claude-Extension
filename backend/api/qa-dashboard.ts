@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { withRateLimit } from '../lib/with-rate-limit.js'
 import { isDashboardKeyValid, QA_EVENT_CATALOGUE } from '../lib/qa.js'
+import { checkGithubIssues } from '../lib/github-issue.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -14,7 +15,7 @@ const sql = neon(process.env.DATABASE_URL ?? '')
 // per-IP rate limit (checked before the key) makes guessing the key
 // impractical.
 //
-// 200 -> { days, defects, feedback, usage, notExercised, testers, daily }
+// 200 -> { days, github, defects, feedback, usage, notExercised, testers, daily }
 // 401 -> missing or wrong key
 // 503 -> QA_DASHBOARD_KEY not configured
 
@@ -36,6 +37,11 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 
   const requested = Number(Array.isArray(req.query.days) ? req.query.days[0] : req.query.days)
   const days = Number.isInteger(requested) && requested >= 1 && requested <= 90 ? requested : 14
+
+  const githubCheck = checkGithubIssues(
+    process.env.QA_GITHUB_TOKEN ?? '',
+    process.env.QA_GITHUB_REPO ?? 'airecore/AIRE-Claude-Extension',
+  )
 
   try {
     const [defects, feedback, usage, testers, daily] = (await sql.transaction([
@@ -101,6 +107,7 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({
       days,
+      github: await githubCheck,
       defects: defects.map((d) => ({
         fingerprint: d.fingerprint,
         source: d.source,

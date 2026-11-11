@@ -118,11 +118,11 @@ Web Store. What is still needed before submitting is listed in
 ## Tester build: how it's published
 
 `extension/` in this repository is the ready-to-load tester build, so
-**Code → Download ZIP** works for testers. Don't edit it: the Tester
-build workflow rebuilds it and commits it back (as `github-actions[bot]`)
-after every push to `main`. `backend/vercel.json` skips the Vercel deploy
-for pushes that don't touch `backend/`, so those commits don't redeploy
-the backend.
+**Code → Download ZIP** works for testers. Don't edit it by hand. After
+changing the extension, run `pnpm run build:extension` and commit the
+updated `extension/` folder together with your change, so the download
+always matches `main`. `backend/vercel.json` skips the Vercel deploy for
+pushes that don't touch `backend/`.
 
 The tester zip linked above is built by
 `.github/workflows/tester-build.yml` and published to the **Tester build

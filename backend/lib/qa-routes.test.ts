@@ -27,7 +27,10 @@ vi.mock('./rate-limit.js', () => ({
   checkRateLimit: async () => ({ ok: true, retryAfter: 0 }),
   clientIp: () => 'test-ip',
 }))
-vi.mock('./github-issue.js', () => ({ createGithubIssue: mockCreateIssue }))
+vi.mock('./github-issue.js', () => ({
+  createGithubIssue: mockCreateIssue,
+  checkGithubIssues: async () => ({ state: 'not_configured', detail: 'not set' }),
+}))
 
 function makeReq(method: string, body: unknown, headers: Record<string, string> = {}, query: Record<string, string> = {}): VercelRequest {
   return { method, body, headers, query } as unknown as VercelRequest
@@ -166,5 +169,6 @@ describe('GET /api/qa-dashboard', async () => {
     expect(body.days).toBe(7)
     expect(body.defects).toEqual([])
     expect(body.notExercised).toContain('button_run')
+    expect((res.body as { github: { state: string } }).github.state).toBe('not_configured')
   })
 })

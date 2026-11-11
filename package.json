@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "update": "git pull --ff-only && pnpm install && pnpm run build",
+    "build:extension": "pnpm run build && node scripts/copy-extension.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",

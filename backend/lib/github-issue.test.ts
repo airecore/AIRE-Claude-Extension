@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createGithubIssue } from './github-issue'
+import { checkGithubIssues, createGithubIssue } from './github-issue'
 
 const issue = { title: 'T', body: 'B', labels: ['tester-feedback', 'bug'] }
 
@@ -37,5 +37,30 @@ describe('createGithubIssue', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(await createGithubIssue(issue, 'tok', 'a/b', vi.fn(async () => response(401)))).toBeNull()
     expect(await createGithubIssue(issue, 'tok', 'a/b', vi.fn(async () => { throw new Error('offline') }))).toBeNull()
+  })
+})
+
+describe('checkGithubIssues', () => {
+  it('says not configured without a token, without calling GitHub', async () => {
+    const fetchImpl = vi.fn()
+    expect((await checkGithubIssues('', 'a/b', fetchImpl)).state).toBe('not_configured')
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('says working when the token can read the repository issues', async () => {
+    const result = await checkGithubIssues('tok', 'a/b', vi.fn(async () => response(200, [])))
+    expect(result).toEqual({ state: 'working', detail: 'Feedback opens issues in a/b.' })
+  })
+
+  it('explains each failure in plain words, with GitHub\'s own message, never the token', async () => {
+    const forbidden = await checkGithubIssues('secret-tok', 'a/b', vi.fn(async () => response(403, { message: 'Resource not accessible' })))
+    expect(forbidden.state).toBe('failing')
+    expect(forbidden.detail).toMatch(/owner must approve/)
+    expect(forbidden.detail).toContain('Resource not accessible')
+    expect(forbidden.detail).not.toContain('secret-tok')
+    expect((await checkGithubIssues('t', 'a/b', vi.fn(async () => response(401)))).detail).toMatch(/expired/)
+    expect((await checkGithubIssues('t', 'a/b', vi.fn(async () => response(404)))).detail).toMatch(/QA_GITHUB_REPO/)
+    expect((await checkGithubIssues('t', 'bad repo', vi.fn())).state).toBe('failing')
+    expect((await checkGithubIssues('t', 'a/b', vi.fn(async () => { throw new Error('x') }))).state).toBe('failing')
   })
 })

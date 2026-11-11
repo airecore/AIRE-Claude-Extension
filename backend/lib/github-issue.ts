@@ -60,3 +60,45 @@ export async function createGithubIssue(
     return null
   }
 }
+
+export type GithubIssuesStatus =
+  | { state: 'not_configured'; detail: string }
+  | { state: 'working'; detail: string }
+  | { state: 'failing'; detail: string }
+
+/**
+ * Checks, without creating anything, whether feedback can open issues:
+ * the token is set, can see the repository, and can read its issues.
+ * Shown at the top of the QA dashboard so a broken token isn't silent.
+ * Never includes the token itself in what it returns.
+ */
+export async function checkGithubIssues(token: string, repo: string, fetchImpl: FetchLike = fetch): Promise<GithubIssuesStatus> {
+  if (!token) return { state: 'not_configured', detail: 'QA_GITHUB_TOKEN is not set in Vercel, so feedback is saved here only.' }
+  if (!REPO_PATTERN.test(repo)) return { state: 'failing', detail: `QA_GITHUB_REPO "${repo}" is not in owner/name form.` }
+  try {
+    const response = await fetchImpl(`https://api.github.com/repos/${repo}/issues?per_page=1`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'aire-extension-qa',
+      },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    if (response.ok) return { state: 'working', detail: `Feedback opens issues in ${repo}.` }
+    const body = (await response.json().catch(() => ({}))) as { message?: unknown }
+    const message = typeof body.message === 'string' ? body.message.slice(0, 200) : ''
+    const hint =
+      response.status === 401
+        ? 'The token is invalid or has expired. Make a new one and update QA_GITHUB_TOKEN.'
+        : response.status === 403
+          ? 'The token is not allowed yet. If the repository belongs to an organisation, an owner must approve the token request.'
+          : response.status === 404
+            ? `The token can't see ${repo}. Check QA_GITHUB_REPO matches the repository exactly, and that the token was given access to it (with Issues: Read and write). An unapproved organisation token also looks like this.`
+            : 'GitHub refused the request.'
+    return { state: 'failing', detail: `${hint} (GitHub ${response.status}${message ? `: ${message}` : ''})` }
+  } catch {
+    return { state: 'failing', detail: "Couldn't reach GitHub to check the token." }
+  }
+}

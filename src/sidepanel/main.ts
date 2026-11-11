@@ -432,7 +432,9 @@ async function refresh(root: HTMLElement): Promise<void> {
               })
             })
           } else {
-            console.error('[Claude Tools] run failed', response.error, response.message)
+            // Shown to the person; the page's script already reports it as a
+            // named QA defect, so warn rather than count it twice.
+            console.warn('[Claude Tools] run failed', response.error, response.message)
             runState.set(button.id, { isRunning: false, error: response.message })
             announce(response.message)
           }
@@ -1092,7 +1094,7 @@ async function refresh(root: HTMLElement): Promise<void> {
                 })
               })
             } else {
-              console.error('[Claude Tools] team prompt run failed', response.error, response.message)
+              console.warn('[Claude Tools] team prompt run failed', response.error, response.message)
               fail(response.message)
             }
           } catch (error) {
