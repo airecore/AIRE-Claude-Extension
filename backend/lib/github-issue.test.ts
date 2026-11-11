@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { checkGithubIssues, createGithubIssue } from './github-issue'
+import { checkGithubIssues, createGithubIssue, openGithubIssue } from './github-issue'
 
 const issue = { title: 'T', body: 'B', labels: ['tester-feedback', 'bug'] }
 
@@ -82,5 +82,21 @@ describe('checkGithubIssues', () => {
     expect((await checkGithubIssues('t', 'a/b', vi.fn(async () => response(404)))).detail).toMatch(/QA_GITHUB_REPO/)
     expect((await checkGithubIssues('t', 'bad repo', vi.fn())).state).toBe('failing')
     expect((await checkGithubIssues('t', 'a/b', vi.fn(async () => { throw new Error('x') }))).state).toBe('failing')
+  })
+})
+
+describe('openGithubIssue', () => {
+  it("returns GitHub's reason in plain words when creating is refused", async () => {
+    const readOnly = vi.fn(async () => response(403, { message: 'Resource not accessible by personal access token' }))
+    const result = await openGithubIssue(issue, 'secret-tok', 'a/b', readOnly)
+    expect(result).toEqual({ error: expect.stringContaining('Resource not accessible by personal access token') })
+    expect((result as { error: string }).error).toMatch(/Read and write/)
+    expect((result as { error: string }).error).not.toContain('secret-tok')
+  })
+
+  it('explains turned-off issues, expired tokens and missing settings', async () => {
+    expect(await openGithubIssue(issue, 't', 'a/b', vi.fn(async () => response(410)))).toEqual({ error: expect.stringMatching(/turned off/) })
+    expect(await openGithubIssue(issue, 't', 'a/b', vi.fn(async () => response(401)))).toEqual({ error: expect.stringMatching(/expired/) })
+    expect(await openGithubIssue(issue, '', 'a/b')).toEqual({ error: expect.stringMatching(/QA_GITHUB_TOKEN/) })
   })
 })

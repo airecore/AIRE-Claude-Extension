@@ -6,7 +6,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 // the handlers' own logic: who may call them, what they store, and what
 // they return.
 
-const { queries, mockResolveEmail, mockCreateIssue, nextRows } = vi.hoisted(() => ({
+const { queries, mockResolveEmail, mockCreateIssue, mockOpenIssue, nextRows } = vi.hoisted(() => ({
+  mockOpenIssue: vi.fn(),
   queries: [] as string[],
   mockResolveEmail: vi.fn(),
   mockCreateIssue: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('./rate-limit.js', () => ({
 }))
 vi.mock('./github-issue.js', () => ({
   createGithubIssue: mockCreateIssue,
+  openGithubIssue: mockOpenIssue,
   DEFAULT_FEEDBACK_REPO: 'airecore/AIRE-QA-Feedback',
   checkGithubIssues: async () => ({ state: 'not_configured', detail: 'not set' }),
 }))
@@ -175,5 +177,45 @@ describe('GET /api/qa-dashboard', async () => {
     expect(body.defects).toEqual([])
     expect(body.notExercised).toContain('button_run')
     expect((res.body as { github: { state: string } }).github.state).toBe('not_configured')
+  })
+})
+
+describe('POST /api/qa-dashboard retry-issues', async () => {
+  const handler = (await import('../api/qa-dashboard.js')).default
+  const row = { id: 'fb-1', category: 'bug', description: 'broke', diagnostics: null, version: '1', browser: 'C' }
+
+  it('needs the dashboard key', async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'retry-issues' }, { authorization: 'Bearer wrong' }), res)
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('opens issues for feedback without one and stores the link', async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    nextRows.value = [row]
+    mockOpenIssue.mockReset().mockResolvedValue({ url: 'https://github.com/a/b/issues/1' })
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'retry-issues' }, { authorization: 'Bearer right-key' }), res)
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual({ results: [{ id: 'fb-1', issueUrl: 'https://github.com/a/b/issues/1' }] })
+    expect(queries.some((q) => q.includes('UPDATE qa_feedback SET github_issue_url'))).toBe(true)
+  })
+
+  it("reports GitHub's reason and stops at the first failure", async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    nextRows.value = [row, { ...row, id: 'fb-2' }]
+    mockOpenIssue.mockReset().mockResolvedValue({ error: 'GitHub 403: nope.' })
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'retry-issues' }, { authorization: 'Bearer right-key' }), res)
+    expect(res.body).toEqual({ results: [{ id: 'fb-1', error: 'GitHub 403: nope.' }] })
+    expect(mockOpenIssue).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects unknown actions', async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'drop-tables' }, { authorization: 'Bearer right-key' }), res)
+    expect(res.statusCode).toBe(400)
   })
 })

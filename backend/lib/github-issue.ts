@@ -53,13 +53,18 @@ async function repoVisibility(token: string, repo: string, fetchImpl: FetchLike)
   }
 }
 
-export async function createGithubIssue(
+export type OpenIssueResult = { url: string } | { error: string }
+
+/** Opens the issue, or says in plain words why GitHub refused (never
+ * including the token). */
+export async function openGithubIssue(
   issue: IssueRequest,
   token: string,
   repo: string,
   fetchImpl: FetchLike = fetch,
-): Promise<string | null> {
-  if (!token || !REPO_PATTERN.test(repo)) return null
+): Promise<OpenIssueResult> {
+  if (!token) return { error: 'QA_GITHUB_TOKEN is not set in Vercel.' }
+  if (!REPO_PATTERN.test(repo)) return { error: `QA_GITHUB_REPO "${repo}" is not in owner/name form.` }
 
   const post = (payload: Partial<IssueRequest>) =>
     fetchImpl(`https://api.github.com/repos/${repo}/issues`, {
@@ -77,15 +82,38 @@ export async function createGithubIssue(
       response = await post({ title: issue.title, body: issue.body })
     }
     if (!response.ok) {
-      console.error('[github-issue] GitHub returned status', response.status)
-      return null
+      const body = (await response.json().catch(() => ({}))) as { message?: unknown }
+      const message = typeof body.message === 'string' ? `: ${body.message.slice(0, 200)}` : ''
+      const hint =
+        response.status === 403 || response.status === 404
+          ? ' The token can read issues but not create them. Give it Issues: Read and write (not Read-only) on this repository, and if the organisation requires it, have an owner approve the change.'
+          : response.status === 401
+            ? ' The token is invalid or has expired.'
+            : response.status === 410
+              ? ' Issues are turned off for this repository (Settings > General > Features > Issues).'
+              : ''
+      return { error: `GitHub ${response.status}${message}.${hint}` }
     }
     const created = (await response.json()) as { html_url?: unknown }
-    return typeof created.html_url === 'string' ? created.html_url : null
-  } catch (error) {
-    console.error('[github-issue] failed to create issue', error)
-    return null
+    return typeof created.html_url === 'string' ? { url: created.html_url } : { error: 'GitHub did not return the new issue link.' }
+  } catch {
+    return { error: "Couldn't reach GitHub." }
   }
+}
+
+/** Opens the issue; null (and a log line) when it can't. Feedback is
+ * always saved first, so a failure only means no issue link. */
+export async function createGithubIssue(
+  issue: IssueRequest,
+  token: string,
+  repo: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<string | null> {
+  if (!token || !REPO_PATTERN.test(repo)) return null
+  const result = await openGithubIssue(issue, token, repo, fetchImpl)
+  if ('url' in result) return result.url
+  console.error('[github-issue] could not create issue --', result.error)
+  return null
 }
 
 export type GithubIssuesStatus =

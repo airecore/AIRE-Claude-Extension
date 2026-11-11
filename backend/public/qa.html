@@ -117,7 +117,7 @@
   function section(title, count, ...body) {
     const h = el('h2', {}, title)
     if (count != null) h.append(el('span', { class: 'count', text: String(count) }))
-    return [h, ...body]
+    return [h, ...body.filter((part) => part != null)]
   }
   function table(headers, rows) {
     if (rows.length === 0) return el('p', { class: 'empty', text: 'Nothing yet.' })
@@ -191,7 +191,48 @@
           }
           return card
         })
-    out.append(...section('Feedback', data.feedback.length, ...feedbackCards))
+    const missing = data.feedback.filter((f) => !safeIssueUrl(f.issueUrl)).length
+    let retryBox = null
+    if (missing > 0 && data.github && data.github.state !== 'not_configured') {
+      const note = el('span', { class: 'muted small', text: `${missing} report${missing === 1 ? '' : 's'} without a GitHub issue.` })
+      const retry = el('button', { type: 'button', text: 'Retry GitHub issues' })
+      const result = el('p', { class: 'small' })
+      retry.addEventListener('click', async () => {
+        retry.disabled = true
+        retry.textContent = 'Retrying…'
+        result.className = 'small'
+        result.textContent = ''
+        try {
+          const response = await fetch('/api/qa-dashboard', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${read()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'retry-issues' }),
+          })
+          const body = await response.json().catch(() => ({}))
+          const results = Array.isArray(body.results) ? body.results : []
+          const opened = results.filter((r) => r.issueUrl).length
+          const failed = results.find((r) => r.error)
+          if (!response.ok) {
+            result.className = 'small error'
+            result.textContent = `The server returned ${response.status}.`
+          } else if (failed) {
+            result.className = 'small error'
+            result.textContent = `${opened ? `Opened ${opened}, then stopped. ` : ''}GitHub said: ${failed.error}`
+          } else {
+            result.textContent = opened ? `Opened ${opened} issue${opened === 1 ? '' : 's'}.` : 'Nothing to retry.'
+            if (opened) load()
+          }
+        } catch {
+          result.className = 'small error'
+          result.textContent = 'Could not reach the server.'
+        } finally {
+          retry.disabled = false
+          retry.textContent = 'Retry GitHub issues'
+        }
+      })
+      retryBox = el('div', {}, el('div', { class: 'toolbar' }, retry, note), result)
+    }
+    out.append(...section('Feedback', data.feedback.length, retryBox, ...feedbackCards))
 
     out.append(...section('Features not yet tried', data.notExercised.length,
       data.notExercised.length === 0

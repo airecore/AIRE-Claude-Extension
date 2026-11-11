@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { withRateLimit } from '../lib/with-rate-limit.js'
-import { isDashboardKeyValid, QA_EVENT_CATALOGUE } from '../lib/qa.js'
-import { checkGithubIssues, DEFAULT_FEEDBACK_REPO } from '../lib/github-issue.js'
+import { buildFeedbackIssue, isDashboardKeyValid, QA_EVENT_CATALOGUE, type DiagnosticLine, type FeedbackCategory } from '../lib/qa.js'
+import { checkGithubIssues, DEFAULT_FEEDBACK_REPO, openGithubIssue } from '../lib/github-issue.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -18,9 +18,48 @@ const sql = neon(process.env.DATABASE_URL ?? '')
 // 200 -> { days, github, defects, feedback, usage, notExercised, testers, daily }
 // 401 -> missing or wrong key
 // 503 -> QA_DASHBOARD_KEY not configured
+//
+// POST /api/qa-dashboard  { action: 'retry-issues' }   (same key)
+// Opens GitHub issues for recent feedback that doesn't have one (GitHub
+// was misconfigured or down when it was sent), and reports GitHub's exact
+// answer for each, so a failing token is diagnosable from the dashboard.
+// 200 -> { results: [ { id, issueUrl } | { id, error } ] }
+
+const RETRY_LIMIT = 20
+
+async function retryIssues(res: VercelResponse): Promise<void> {
+  const rows = (await sql`
+    SELECT id, category, description, diagnostics, version, browser
+    FROM qa_feedback
+    WHERE github_issue_url IS NULL AND created_at > now() - interval '30 days'
+    ORDER BY created_at ASC
+    LIMIT ${RETRY_LIMIT}
+  `) as { id: string; category: FeedbackCategory; description: string; diagnostics: DiagnosticLine[] | null; version: string; browser: string }[]
+
+  const token = process.env.QA_GITHUB_TOKEN ?? ''
+  const repo = process.env.QA_GITHUB_REPO || DEFAULT_FEEDBACK_REPO
+  const results: ({ id: string; issueUrl: string } | { id: string; error: string })[] = []
+  for (const row of rows) {
+    const issue = buildFeedbackIssue(
+      row.id,
+      { category: row.category, description: row.description, attachDiagnostics: row.diagnostics !== null, version: row.version, browser: row.browser },
+      row.diagnostics,
+    )
+    const opened = await openGithubIssue(issue, token, repo)
+    if ('url' in opened) {
+      await sql`UPDATE qa_feedback SET github_issue_url = ${opened.url} WHERE id = ${row.id}`
+      results.push({ id: row.id, issueUrl: opened.url })
+    } else {
+      results.push({ id: row.id, error: opened.error })
+      // Same cause for the rest -- don't hammer GitHub with it.
+      break
+    }
+  }
+  res.status(200).json({ results })
+}
 
 async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     res.status(405).json({ error: 'method not allowed' })
     return
   }
@@ -32,6 +71,20 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   }
   if (!isDashboardKeyValid(req.headers.authorization, configuredKey)) {
     res.status(401).json({ error: 'invalid dashboard key' })
+    return
+  }
+
+  if (req.method === 'POST') {
+    if ((req.body as { action?: unknown } | undefined)?.action !== 'retry-issues') {
+      res.status(400).json({ error: 'unknown action' })
+      return
+    }
+    try {
+      await retryIssues(res)
+    } catch (error) {
+      console.error('[qa-dashboard] retry failed', error)
+      res.status(500).json({ error: 'internal error' })
+    }
     return
   }
 
