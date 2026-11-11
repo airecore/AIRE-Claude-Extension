@@ -258,7 +258,7 @@ email code, enterprise SSO).
    |---|---|
    | `QA_DASHBOARD_KEY` | output of `openssl rand -hex 24`; the password for `/qa.html` |
    | `QA_GITHUB_TOKEN` | a GitHub fine-grained personal access token for the feedback repository only, with **Issues: Read and write** (optional; without it feedback is saved but no issues are opened) |
-   | `QA_GITHUB_REPO` | `airecore/AIRE-QA-Feedback`: a **private** repository, because this code repository is public and issues there would be visible to anyone. Team members added to it see every report. |
+   | `QA_GITHUB_REPO` | `airecore/AIRE-QA-Feedback` (also the default if unset): a **private** repository. The backend checks the repository is private before every issue and refuses to post to a public one, because tester text would be visible to anyone. Team members added to it see every report. |
 
 3. Redeploy. Open `/qa.html` and enter the key.
 

@@ -29,6 +29,7 @@ vi.mock('./rate-limit.js', () => ({
 }))
 vi.mock('./github-issue.js', () => ({
   createGithubIssue: mockCreateIssue,
+  DEFAULT_FEEDBACK_REPO: 'airecore/AIRE-QA-Feedback',
   checkGithubIssues: async () => ({ state: 'not_configured', detail: 'not set' }),
 }))
 
@@ -109,6 +110,7 @@ describe('POST /api/qa-feedback', async () => {
   })
 
   it('saves feedback, opens an issue and returns both', async () => {
+    delete process.env.QA_GITHUB_REPO
     mockResolveEmail.mockResolvedValue('t@example.com')
     nextRows.value = [{ id: 'fb-1' }]
     mockCreateIssue.mockResolvedValue('https://github.com/a/b/issues/1')
@@ -118,6 +120,9 @@ describe('POST /api/qa-feedback', async () => {
     expect(res.body).toEqual({ id: 'fb-1', issueUrl: 'https://github.com/a/b/issues/1' })
     expect(queries.some((q) => q.includes('INSERT INTO qa_feedback'))).toBe(true)
     expect(queries.some((q) => q.includes('UPDATE qa_feedback SET github_issue_url'))).toBe(true)
+    // With QA_GITHUB_REPO unset, issues go to the private feedback repo,
+    // never the public code repo.
+    expect(mockCreateIssue.mock.calls[0][2]).toBe('airecore/AIRE-QA-Feedback')
     expect(queries.some((q) => q.includes('FROM qa_events'))).toBe(false)
   })
 

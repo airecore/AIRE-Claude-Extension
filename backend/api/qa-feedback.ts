@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { checkRateLimit } from '../lib/rate-limit.js'
 import { buildFeedbackIssue, parseQaFeedback, type DiagnosticLine } from '../lib/qa.js'
-import { createGithubIssue } from '../lib/github-issue.js'
+import { createGithubIssue, DEFAULT_FEEDBACK_REPO } from '../lib/github-issue.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const issueUrl = await createGithubIssue(
     buildFeedbackIssue(id, feedback, diagnostics),
     process.env.QA_GITHUB_TOKEN ?? '',
-    process.env.QA_GITHUB_REPO ?? 'airecore/AIRE-Claude-Extension',
+    process.env.QA_GITHUB_REPO || DEFAULT_FEEDBACK_REPO,
   )
   if (issueUrl) {
     try {

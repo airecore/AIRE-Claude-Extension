@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { withRateLimit } from '../lib/with-rate-limit.js'
 import { isDashboardKeyValid, QA_EVENT_CATALOGUE } from '../lib/qa.js'
-import { checkGithubIssues } from '../lib/github-issue.js'
+import { checkGithubIssues, DEFAULT_FEEDBACK_REPO } from '../lib/github-issue.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
 
@@ -40,7 +40,7 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 
   const githubCheck = checkGithubIssues(
     process.env.QA_GITHUB_TOKEN ?? '',
-    process.env.QA_GITHUB_REPO ?? 'airecore/AIRE-Claude-Extension',
+    process.env.QA_GITHUB_REPO || DEFAULT_FEEDBACK_REPO,
   )
 
   try {
