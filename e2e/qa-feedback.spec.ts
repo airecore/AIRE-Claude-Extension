@@ -72,3 +72,9 @@ test('a failed send keeps what the tester wrote', async ({ context }) => {
   await expect(page.getByRole('textbox', { name: 'What happened?' })).toHaveValue('Import froze.')
   await expect(page.getByRole('checkbox')).not.toBeChecked()
 })
+
+test('the feedback form tells testers their message may be public', async ({ sidepanel }) => {
+  await sidepanel.getByRole('button', { name: 'Settings' }).click()
+  await sidepanel.getByRole('button', { name: 'Send feedback or report a problem' }).click()
+  await expect(sidepanel.getByText(/may be posted as a public GitHub issue/)).toBeVisible()
+})

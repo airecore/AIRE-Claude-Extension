@@ -3,12 +3,12 @@
 //
 //   QA_GITHUB_TOKEN  fine-grained personal access token with
 //                    "Issues: Read and write" on the repository only
-//   QA_GITHUB_REPO   owner/name of a PRIVATE repository; defaults to
-//                    airecore/AIRE-QA-Feedback
+//   QA_GITHUB_REPO   owner/name; defaults to airecore/AIRE-QA-Feedback
 //
-// Feedback is never posted to a public repository: tester text and
-// activity would then be visible to anyone. Every issue is preceded by a
-// check that the repository is private.
+// The repository may be public (the team chose that for
+// AIRE-QA-Feedback): issues never include the tester's email, the feedback
+// form tells testers their message may be public, and the dashboard's
+// status line says when the repository is public.
 //
 // Best-effort: feedback is always saved to the database first, so a
 // missing token, a GitHub outage or a slow response just means no issue
@@ -61,16 +61,6 @@ export async function createGithubIssue(
 ): Promise<string | null> {
   if (!token || !REPO_PATTERN.test(repo)) return null
 
-  const visibility = await repoVisibility(token, repo, fetchImpl)
-  if (visibility !== true) {
-    console.error(
-      visibility === false
-        ? `[github-issue] refusing to post feedback: ${repo} is public`
-        : `[github-issue] could not confirm ${repo} is private (${visibility ?? 'network error'})`,
-    )
-    return null
-  }
-
   const post = (payload: Partial<IssueRequest>) =>
     fetchImpl(`https://api.github.com/repos/${repo}/issues`, {
       method: 'POST',
@@ -113,19 +103,21 @@ export async function checkGithubIssues(token: string, repo: string, fetchImpl: 
   if (!token) return { state: 'not_configured', detail: 'QA_GITHUB_TOKEN is not set in Vercel, so feedback is saved here only.' }
   if (!REPO_PATTERN.test(repo)) return { state: 'failing', detail: `QA_GITHUB_REPO "${repo}" is not in owner/name form.` }
   const visibility = await repoVisibility(token, repo, fetchImpl)
-  if (visibility === false) {
-    return {
-      state: 'failing',
-      detail: `${repo} is public, so feedback is NOT being posted there (testers' text would be visible to anyone). Set QA_GITHUB_REPO in Vercel to the private feedback repository, e.g. ${DEFAULT_FEEDBACK_REPO}, and give the token access to it.`,
-    }
-  }
   try {
     const response = await fetchImpl(`https://api.github.com/repos/${repo}/issues?per_page=1`, {
       method: 'GET',
       headers: githubHeaders(token),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
-    if (response.ok) return { state: 'working', detail: `Feedback opens issues in ${repo} (private).` }
+    if (response.ok) {
+      return {
+        state: 'working',
+        detail:
+          visibility === false
+            ? `Feedback opens issues in ${repo}. It's a public repository, so anyone on the internet can read them (testers' emails are never included).`
+            : `Feedback opens issues in ${repo} (private).`,
+      }
+    }
     const body = (await response.json().catch(() => ({}))) as { message?: unknown }
     const message = typeof body.message === 'string' ? body.message.slice(0, 200) : ''
     const hint =

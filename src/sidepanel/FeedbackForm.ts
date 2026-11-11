@@ -156,6 +156,14 @@ export function renderFeedbackForm(context: FeedbackFormContext): HTMLElement {
 
   container.appendChild(form)
 
+  // The feedback repository is public, so testers should know before
+  // writing anything personal or confidential.
+  const visibility = document.createElement('p')
+  visibility.className = 'settings-hint feedback-public-note'
+  visibility.textContent =
+    'Your message (without your email) may be posted as a public GitHub issue, so please leave out anything personal or confidential.'
+  container.appendChild(visibility)
+
   const build = document.createElement('p')
   build.className = 'settings-hint'
   build.textContent = `Build ${context.buildLabel}`

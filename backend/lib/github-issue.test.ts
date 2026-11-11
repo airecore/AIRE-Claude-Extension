@@ -27,33 +27,24 @@ describe('createGithubIssue', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('returns the new issue URL after confirming the repository is private', async () => {
+  it('returns the new issue URL', async () => {
     const fetchImpl = github(true, response(201, { html_url: 'https://github.com/a/b/issues/7' }))
     expect(await createGithubIssue(issue, 'tok', 'a/b', fetchImpl)).toBe('https://github.com/a/b/issues/7')
-    const [url, init] = fetchImpl.mock.calls[1] as unknown as [string, RequestInit]
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://api.github.com/repos/a/b/issues')
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok')
     expect(JSON.parse(init.body as string).labels).toEqual(['tester-feedback', 'bug'])
   })
 
-  it('never posts feedback to a public repository', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('posts to a public repository too (the team chose a public feedback repo)', async () => {
     const fetchImpl = github(false, response(201, { html_url: 'https://github.com/a/b/issues/9' }))
-    expect(await createGithubIssue(issue, 'tok', 'a/b', fetchImpl)).toBeNull()
-    expect(fetchImpl).toHaveBeenCalledTimes(1)
-  })
-
-  it("doesn't post when it can't confirm the repository is private", async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const notFound = vi.fn(async () => response(404))
-    expect(await createGithubIssue(issue, 'tok', 'a/b', notFound)).toBeNull()
-    expect(notFound).toHaveBeenCalledTimes(1)
+    expect(await createGithubIssue(issue, 'tok', 'a/b', fetchImpl)).toBe('https://github.com/a/b/issues/9')
   })
 
   it('retries without labels when GitHub rejects them', async () => {
     const fetchImpl = github(true, response(422), response(201, { html_url: 'https://github.com/a/b/issues/8' }))
     expect(await createGithubIssue(issue, 'tok', 'a/b', fetchImpl)).toBe('https://github.com/a/b/issues/8')
-    expect(JSON.parse((fetchImpl.mock.calls[2][1] as RequestInit).body as string).labels).toBeUndefined()
+    expect(JSON.parse((fetchImpl.mock.calls[1][1] as RequestInit).body as string).labels).toBeUndefined()
   })
 
   it('returns null on GitHub errors or network failure instead of throwing', async () => {
@@ -75,11 +66,10 @@ describe('checkGithubIssues', () => {
     expect(result).toEqual({ state: 'working', detail: 'Feedback opens issues in a/b (private).' })
   })
 
-  it('flags a public repository as failing, since feedback is not posted there', async () => {
+  it('says working for a public repository, and says plainly that anyone can read the issues', async () => {
     const result = await checkGithubIssues('tok', 'a/b', github(false, response(200, [])))
-    expect(result.state).toBe('failing')
-    expect(result.detail).toMatch(/is public/)
-    expect(result.detail).toContain('QA_GITHUB_REPO')
+    expect(result.state).toBe('working')
+    expect(result.detail).toMatch(/public repository, so anyone on the internet can read them/)
   })
 
   it("explains each failure in plain words, with GitHub's own message, never the token", async () => {

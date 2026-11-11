@@ -29,7 +29,7 @@ Tester QA logging (see the main README's
 |---|---|
 | `QA_DASHBOARD_KEY` | output of `openssl rand -hex 24`. Password for `/qa.html` and `GET /api/qa-dashboard`. Unset = dashboard disabled (503). |
 | `QA_GITHUB_TOKEN` | Optional. Fine-grained token for this repository only, **Issues: Read and write**. Lets feedback open GitHub issues. |
-| `QA_GITHUB_REPO` | Optional, default `airecore/AIRE-QA-Feedback`. Where those issues go. Must be a **private** repository: the backend refuses to post feedback to a public one. The dashboard's status line shows whether issues are working. |
+| `QA_GITHUB_REPO` | Optional, default `airecore/AIRE-QA-Feedback`. Where those issues go. May be public (anyone can then read them; emails are never included). The dashboard's status line shows whether issues are working and whether the repository is public. |
 
 Do not set `CLERK_OAUTH_CLIENT_SECRET`: the Clerk OAuth application must
 be **Public (PKCE)**. A Confidential application makes sign-in fail with

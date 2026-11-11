@@ -258,7 +258,7 @@ email code, enterprise SSO).
    |---|---|
    | `QA_DASHBOARD_KEY` | output of `openssl rand -hex 24`; the password for `/qa.html` |
    | `QA_GITHUB_TOKEN` | a GitHub fine-grained personal access token for the feedback repository only, with **Issues: Read and write** (optional; without it feedback is saved but no issues are opened) |
-   | `QA_GITHUB_REPO` | `airecore/AIRE-QA-Feedback` (also the default if unset): a **private** repository. The backend checks the repository is private before every issue and refuses to post to a public one, because tester text would be visible to anyone. Team members added to it see every report. |
+   | `QA_GITHUB_REPO` | `airecore/AIRE-QA-Feedback` (also the default if unset). It is currently **public**, by choice: anyone on the internet can read the issues. Testers' emails are never included, and the feedback form warns testers their message may be public. Make it private (repo Settings → Change visibility) to limit it to people with access. |
 
 3. Redeploy. Open `/qa.html` and enter the key.
 
@@ -387,8 +387,9 @@ Where to read it:
 
 It holds no code: it exists only so tester feedback lands somewhere the
 team can discuss, assign and close it. Its main page only shows a README;
-the reports are under its **Issues** tab. It's private because this code
-repository is public.
+the reports are under its **Issues** tab. It is public, so anyone can
+read the issues; testers are told this in the feedback form, and their
+emails are never included.
 
 - **What creates an issue:** each report a tester sends from Settings →
   **Send feedback or report a problem**. The issue has their message (in a
