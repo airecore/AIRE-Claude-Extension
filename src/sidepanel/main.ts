@@ -129,6 +129,8 @@ const settingsState: SettingsState = {
   successCount: null,
   signingIn: false,
   orgResolving: false,
+  onboardingError: null,
+  onboardingBusy: false,
 }
 let focusHandleId: string | null = null
 
@@ -205,12 +207,6 @@ async function resolveOrgSessionInner(root: HTMLElement): Promise<void> {
   const resolution = await fetchOrgSession(idToken)
   if (session !== startedForSession) return
   orgSession = resolution
-
-  if (resolution?.state === 'needs_onboarding') {
-    view = { mode: 'org-onboarding' }
-    await refresh(root)
-    return
-  }
 
   if (resolution?.state === 'active') {
     const result = await loadOrgPrompts(idToken)
@@ -727,34 +723,50 @@ async function refresh(root: HTMLElement): Promise<void> {
         if (view.mode === 'org-onboarding') view = { mode: 'list' }
         await refresh(root)
       },
+      onOpenCreateOrg: () => {
+        settingsState.onboardingError = null
+        view = { mode: 'org-onboarding' }
+        void refresh(root)
+      },
       onOnboardingSubmit: async (data: { orgName: string; initialMemberEmails: string[] }) => {
+        if (settingsState.onboardingBusy) return
         const idToken = await authAdapter.getValidToken()
         if (!idToken) {
-          announce('Please sign in again to set up your organisation.')
-          view = { mode: 'list' }
+          settingsState.onboardingError = 'Please sign in again, then try again.'
+          announce(settingsState.onboardingError)
           await refresh(root)
           return
         }
-        const result = await submitOrgOnboarding(idToken, data.orgName, data.initialMemberEmails)
+        settingsState.onboardingBusy = true
+        settingsState.onboardingError = null
+        await refresh(root)
+        let result: Awaited<ReturnType<typeof submitOrgOnboarding>> = null
+        try {
+          result = await submitOrgOnboarding(idToken, data.orgName, data.initialMemberEmails)
+        } finally {
+          settingsState.onboardingBusy = false
+        }
         if (!result) {
-          announce('Something went wrong setting up your organisation. Check the console for details.')
+          settingsState.onboardingError = "Couldn't create the organisation. Check your connection and try again."
+          announce(settingsState.onboardingError)
+          await refresh(root)
           return
         }
-        view = { mode: 'list' }
+        view = { mode: 'settings' }
         qaTrack('org_onboarding_submitted', { outcome: result.outcome })
-        announce(result.outcome === 'created' ? `${result.org.name} created.` : `Joined ${result.org.name}.`)
+        announce(
+          result.outcome === 'created'
+            ? `${result.org.name} created. You're its admin.`
+            : `${result.org.name} already exists for your company, so a request to join it was sent to its admins.`,
+        )
         await refresh(root)
         void resolveOrgSession(root)
       },
-      onOnboardingCancel: async () => {
-        await authAdapter.signOut()
-        await clearCachedOrgPrompts()
-        session = null
-        stopUsageReportTimer()
-        orgSession = null
-        teamPrompts = { orgName: null, tabs: [], prompts: [] }
-        view = { mode: 'list' }
-        await refresh(root)
+      onOnboardingCancel: () => {
+        // Back to Settings -- still signed in, with a personal account.
+        settingsState.onboardingError = null
+        view = { mode: 'settings' }
+        void refresh(root)
       },
       onOpenManageOrg: () => {
         clearRunErrors()

@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
 import { resolveOrgId, isPublicEmailDomain, type OrgRecord } from '../lib/resolve-org.js'
-import { resolveSessionState, type OrgMemberRecord } from '../lib/resolve-session.js'
 import { checkRateLimit, clientIp } from '../lib/rate-limit.js'
 import { resolveAnyMembership } from '../lib/resolve-membership.js'
 
@@ -62,23 +61,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       // check resolves to the exact same org the session does.
       resolveAnyMembership(sql, email),
     ])
-    const existingMember: OrgMemberRecord | null = membership
-      ? { orgId: membership.orgId, email, role: membership.role, status: membership.status }
-      : null
 
-    if (resolveSessionState(email, existingMember, orgs).state !== 'needs_onboarding') {
+    // Any membership row at all (active, invited, or a join request) means
+    // they should act on that first -- accept/decline the invite, or leave.
+    if (membership) {
       res.status(409).json({ error: 'already a member of an organization' })
       return
     }
 
-    // Best-effort race guard for real company domains: if another request
-    // created an org for this exact domain between our read above and now,
-    // join it as a pending member instead of creating a duplicate. This is
-    // not a hard database guarantee (no unique constraint backs it, since
+    // One organisation per real company domain: if the caller's company
+    // already has one, creating another would split the team, so this
+    // sends that organisation a join request for an admin to approve
+    // instead. Public domains (gmail.com, ...) never match each other.
+    // Not a hard database guarantee (no unique constraint backs it, since
     // public domains must never be deduplicated this way) -- an extremely
     // tight simultaneous race could still create two organizations for the
-    // same brand-new domain. Accepted, documented low-probability edge
-    // case, not a correctness or security issue.
+    // same brand-new domain. Accepted, low-probability edge case.
     if (!isPublicEmailDomain(domain)) {
       const raceOrgId = resolveOrgId(email, orgs)
       if (raceOrgId) {

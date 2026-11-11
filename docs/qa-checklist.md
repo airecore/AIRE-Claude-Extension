@@ -53,9 +53,13 @@ open a fresh claude.ai tab.
 - [ ] Settings → **Sign in** → Clerk hosted page → pick a method (Google / GitHub / email / …).
 - [ ] "Signing in…" spinner shows during the flow.
 - [ ] After sign-in: "Checking organisation…" then the correct state.
-- [ ] First sign-in at a **company domain** → onboarding screen → create org → you are admin.
-- [ ] Second account at the **same domain** → "Waiting for approval from <org>".
-- [ ] A `gmail.com` / `outlook.com` account → onboarding, its own separate org (never auto-joins).
+- [ ] First sign-in with any new account → back in Settings as **Personal account**; no organisation screen, no join request.
+- [ ] Personal buttons work as normal while signed in.
+- [ ] Settings → **Create an organisation** → Cancel → still signed in, still a personal account.
+- [ ] Settings → **Create an organisation** at a new **company domain** → you are admin (Manage Organisation appears).
+- [ ] Second account at the **same domain** → sign-in alone gives a personal account; **Create an organisation** sends a join request → "Waiting for approval from <org>".
+- [ ] A `gmail.com` / `outlook.com` account → **Create an organisation** makes its own separate org (never joins another).
+- [ ] Admin invites a brand-new account → that person signs in and sees the invite → **Accept** → member.
 
 ## 6. Admin (director)
 
@@ -76,7 +80,7 @@ open a fresh claude.ai tab.
 - [ ] Settings shows "Member of <org>." + **Leave organisation**.
 - [ ] Pending user sees "Waiting for approval from <org>." + **Cancel request**.
 - [ ] **Leave organisation** → confirm → Team section disappears; Settings returns to signed-in-no-org.
-- [ ] After leaving, signing in again → onboarding / pending as appropriate.
+- [ ] After leaving, signing in again → personal account.
 - [ ] **Cancel request** on a pending state → same, request is withdrawn.
 - [ ] Invited user sees "<admin> invited you to join <org>." with **Accept** / **Decline** (list card and Settings).
 - [ ] **Accept** → Team section appears, admin's roster shows them as Member.

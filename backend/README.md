@@ -89,7 +89,8 @@ Authorization: Bearer <token>
 200 -> { "state": "active", "org": { "id": "...", "name": "..." }, "role": "director" | "member" }
 200 -> { "state": "pending", "org": { "id": "...", "name": "..." } }
 200 -> { "state": "invited", "org": { "id": "...", "name": "..." }, "invitedBy": "admin@b.com" | null }
-200 -> { "state": "needs_onboarding" }
+200 -> { "state": "none" }      a personal account: signing in never creates an organisation
+                                or join request on its own
 401 -> token missing or invalid
 
 POST   /api/org-session   { "action": "accept-invite" }   (invitee only)
@@ -102,15 +103,17 @@ DELETE /api/org-session      leave the organisation, cancel a join request, or d
 ```
 
 ```
-POST /api/org-onboarding
+POST /api/org-onboarding        Settings > "Create an organisation" (optional)
 Authorization: Bearer <token>
 Body: { "orgName": "...", "initialMemberEmails": ["...", "..."] }
 
 200 -> { "outcome": "created", "org": { "id": "...", "name": "..." }, "role": "director" }
 200 -> { "outcome": "joined_existing", "org": { "id": "...", "name": "..." } }
+         -- the caller's company domain already has an organisation, so a
+            join request was sent to it instead of creating a second one
 400 -> orgName missing/empty, or invalid email
 401 -> token missing or invalid
-409 -> already a member of an organization
+409 -> already a member of, invited to, or requesting an organisation
 ```
 
 ```

@@ -273,15 +273,18 @@ fill in before running it in the Neon SQL Editor.
 
 Signing in is optional; personal buttons never need it.
 
-- **The first sign-in from a company email domain creates the
-  organisation** and makes that person its **admin**. Later sign-ins from
-  the same domain become join requests ("Wants to join") that an admin
-  approves or declines.
-- **Public email domains** (`gmail.com`, `outlook.com`, …) never join
-  each other; each such sign-in starts its own organisation.
-- **Invites:** an admin can invite anyone by email. The invitee sees
-  "<admin> invited you to join <org>" the next time they sign in and
-  **accepts or declines**. Nobody is added to an organisation, or has
+- **Signing in gives you a personal account.** Nothing else happens: no
+  organisation is created and no join request is sent. Settings says
+  "Personal account".
+- **Invites are how people join.** An admin invites anyone by email. The
+  invitee sees "<admin> invited you to join <org>" in the sidebar and in
+  Settings the next time they open it, and **accepts or declines**.
+- **Creating an organisation is optional:** Settings → **Create an
+  organisation** makes you its **admin**. If your company email domain
+  already has an organisation, it sends that organisation a join request
+  ("Wants to join") for an admin to approve, instead of creating a second
+  one. Public email domains (`gmail.com`, `outlook.com`, …) never match
+  each other, so each of those creates its own organisation. Nobody is added to an organisation, or has
   their usage shared, without accepting.
 - **Leaving:** a member can leave, a requester can cancel and an invitee
   can decline, from Settings. Leaving or being removed deletes that

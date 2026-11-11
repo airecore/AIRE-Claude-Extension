@@ -59,6 +59,9 @@ export interface SettingsState {
   successCount: number | null
   signingIn: boolean
   orgResolving: boolean
+  /** Create-organisation form: last error, and whether a request is in flight. */
+  onboardingError?: string | null
+  onboardingBusy?: boolean
 }
 
 export interface RenderContext {
@@ -90,6 +93,7 @@ export interface RenderContext {
   onSelectTeamTab: (tabId: string) => void
   onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void
   onOnboardingCancel: () => void
+  onOpenCreateOrg: () => void
   onOpenManageOrg: () => void
   onLeaveOrg: () => void
   onAcceptInvite: () => void
@@ -227,6 +231,7 @@ export function renderApp(
         onOpenManageOrg: context.onOpenManageOrg,
         onLeaveOrg: context.onLeaveOrg,
         onAcceptInvite: context.onAcceptInvite,
+        onCreateOrg: context.onOpenCreateOrg,
       }),
     )
     return
@@ -234,7 +239,12 @@ export function renderApp(
 
   if (view.mode === 'org-onboarding') {
     root.appendChild(
-      renderOrgOnboarding({ onSubmit: context.onOnboardingSubmit, onCancel: context.onOnboardingCancel }),
+      renderOrgOnboarding({
+        onSubmit: context.onOnboardingSubmit,
+        onCancel: context.onOnboardingCancel,
+        error: settingsState.onboardingError,
+        busy: settingsState.onboardingBusy,
+      }),
     )
     return
   }

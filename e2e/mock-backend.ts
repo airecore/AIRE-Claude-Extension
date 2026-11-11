@@ -28,6 +28,10 @@ export interface OrgScenario {
   /** Returned by POST /api/org-session { action: 'accept-invite' }; after
    * that, plain org-session calls return it too (the invite is accepted). */
   acceptedSession?: unknown
+  /** Returned by POST /api/org-onboarding; after that, org-session
+   * returns `sessionAfterOnboarding` (if given). */
+  onboardingResult?: unknown
+  sessionAfterOnboarding?: unknown
   /** Filled in by the mock: every QA event the extension sent. */
   qaEvents?: { name: string; kind: string; source: string; props?: Record<string, unknown> }[]
   /** Filled in by the mock: every feedback body the extension sent. */
@@ -69,6 +73,9 @@ export async function mockClerkAndBackend(page: Page, scenario: OrgScenario): Pr
         return route.fulfill({ json: { members: scenario.members ?? [] } })
       case '/api/org-analytics':
         return route.fulfill({ json: scenario.analytics ?? { topPrompts: [], perMember: [], dailyRuns: [] } })
+      case '/api/org-onboarding':
+        if (scenario.sessionAfterOnboarding) scenario.orgSession = scenario.sessionAfterOnboarding
+        return route.fulfill({ json: scenario.onboardingResult ?? {} })
       case '/api/qa-events': {
         const body = route.request().postDataJSON() as { events?: OrgScenario['qaEvents'] }
         ;(scenario.qaEvents ??= []).push(...(body.events ?? []))

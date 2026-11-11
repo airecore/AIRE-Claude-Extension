@@ -21,6 +21,8 @@ export interface SettingsPanelContext {
   /** Withdraw from the current org (member), cancel a pending request, or decline an invite. */
   onLeaveOrg: () => void
   onAcceptInvite: () => void
+  /** Opens the optional "Create an organisation" form. */
+  onCreateOrg?: () => void
   /** Tester build only: the feedback entry point and build label. */
   qa?: { buildLabel: string; onOpenFeedback: () => void } | null
 }
@@ -108,11 +110,25 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
       authSection.appendChild(leaveButton('Cancel request'))
     } else if (context.orgResolving) {
       authSection.appendChild(loadingLine('Checking organisation...'))
+    } else if (org?.state === 'none') {
+      // A personal account: everything works as before; an organisation is
+      // something you're invited to, or optionally create.
+      authSection.appendChild(
+        orgHint("Personal account. If an admin invites you to an organisation, the invite will show up here."),
+      )
+      if (context.onCreateOrg) {
+        const create = document.createElement('button')
+        create.type = 'button'
+        create.className = 'settings-action-button'
+        create.textContent = 'Create an organisation'
+        create.addEventListener('click', context.onCreateOrg)
+        authSection.appendChild(create)
+      }
     }
   } else {
     const signInLabel = document.createElement('p')
     signInLabel.className = 'settings-hint'
-    signInLabel.textContent = 'Sign in to find or set up your organisation.'
+    signInLabel.textContent = 'Sign in to use shared team prompts and accept invites. Your own buttons work without it.'
     authSection.appendChild(signInLabel)
 
     for (const provider of enabledProviders()) {
