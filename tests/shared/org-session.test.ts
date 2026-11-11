@@ -30,8 +30,12 @@ describe('parseOrgSessionResponse', () => {
     expect(parseOrgSessionResponse(raw)).toEqual({ state: 'pending', org: { id: 'org-1', name: 'Acme' } })
   })
 
-  it('parses a needs_onboarding state', () => {
-    expect(parseOrgSessionResponse({ state: 'needs_onboarding' })).toEqual({ state: 'needs_onboarding' })
+  it('parses a personal account (no organisation)', () => {
+    expect(parseOrgSessionResponse({ state: 'none' })).toEqual({ state: 'none' })
+  })
+
+  it("treats an older backend's needs_onboarding as a personal account", () => {
+    expect(parseOrgSessionResponse({ state: 'needs_onboarding' })).toEqual({ state: 'none' })
   })
 
   it('returns null for an unrecognized state value', () => {

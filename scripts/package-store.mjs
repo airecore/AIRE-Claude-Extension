@@ -14,6 +14,16 @@ run('npx vite build', { AIRE_STORE_BUILD: '1' })
 const manifest = JSON.parse(readFileSync('dist/manifest.json', 'utf8'))
 if (manifest.key) throw new Error('store build still has a `key` -- the Web Store would reject it')
 
+// Tester QA logging must not ship to the store (see vite.config.ts). The
+// QA endpoints only appear in the bundle when it is switched on.
+for (const file of readdirSync('dist/assets')) {
+  if (!file.endsWith('.js')) continue
+  const code = readFileSync(join('dist/assets', file), 'utf8')
+  if (code.includes('/api/qa-events') || code.includes('/api/qa-feedback')) {
+    throw new Error(`store build still contains tester QA logging (${file})`)
+  }
+}
+
 // Minimal zip writer (deflate, no dependency): the OS zip tools differ per
 // platform (`tar -a` is a tar under Git Bash), so we write the format directly.
 const CRC = Array.from({ length: 256 }, (_, n) => {

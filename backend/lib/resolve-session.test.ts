@@ -1,44 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { resolveSessionState } from './resolve-session'
 
-const ORGS = [{ id: 'org-1', domain: 'acme.com' }]
-
 describe('resolveSessionState', () => {
   it('returns active with role for an existing active member', () => {
     const member = { orgId: 'org-1', email: 'alice@acme.com', role: 'director' as const, status: 'active' as const }
-    expect(resolveSessionState('alice@acme.com', member, ORGS)).toEqual({
-      state: 'active',
-      orgId: 'org-1',
-      role: 'director',
-    })
+    expect(resolveSessionState(member)).toEqual({ state: 'active', orgId: 'org-1', role: 'director' })
   })
 
-  it('returns pending for an existing pending member, without re-checking domain', () => {
+  it('returns pending for an existing join request', () => {
     const member = { orgId: 'org-1', email: 'bob@acme.com', role: 'member' as const, status: 'pending' as const }
-    expect(resolveSessionState('bob@acme.com', member, ORGS)).toEqual({ state: 'pending', orgId: 'org-1' })
+    expect(resolveSessionState(member)).toEqual({ state: 'pending', orgId: 'org-1' })
   })
 
-  it('returns invited for an admin-added row, even at a public domain -- the person accepts, not the admin', () => {
+  it('returns invited for an admin-added row -- the person accepts, not the admin', () => {
     const member = { orgId: 'org-1', email: 'frank@outlook.com', role: 'member' as const, status: 'invited' as const }
-    expect(resolveSessionState('frank@outlook.com', member, ORGS)).toEqual({ state: 'invited', orgId: 'org-1' })
+    expect(resolveSessionState(member)).toEqual({ state: 'invited', orgId: 'org-1' })
   })
 
-  it('returns pending for a new email matching an existing non-public org domain', () => {
-    expect(resolveSessionState('carol@acme.com', null, ORGS)).toEqual({ state: 'pending', orgId: 'org-1' })
-  })
-
-  it('returns needs_onboarding for a new email at an unknown company domain', () => {
-    expect(resolveSessionState('dave@unknown.com', null, ORGS)).toEqual({ state: 'needs_onboarding' })
-  })
-
-  it('returns needs_onboarding for a new email at a public domain, even if an org happens to share that domain value', () => {
-    const orgsWithPublicDomain = [...ORGS, { id: 'org-2', domain: 'gmail.com' }]
-    expect(resolveSessionState('erin@gmail.com', null, orgsWithPublicDomain)).toEqual({
-      state: 'needs_onboarding',
-    })
-  })
-
-  it('returns needs_onboarding for an email with no @ sign', () => {
-    expect(resolveSessionState('not-an-email', null, ORGS)).toEqual({ state: 'needs_onboarding' })
+  it('returns none (a personal account) for anyone with no membership, whatever their email domain', () => {
+    // Signing in alone never creates an organisation or a join request.
+    expect(resolveSessionState(null)).toEqual({ state: 'none' })
   })
 })

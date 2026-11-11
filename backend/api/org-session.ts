@@ -1,17 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { neon } from '@neondatabase/serverless'
 import { resolveEmail } from '../lib/resolve-email.js'
-import { type OrgRecord } from '../lib/resolve-org.js'
 import { resolveSessionState, type OrgMemberRecord } from '../lib/resolve-session.js'
 import { isLastActiveDirector } from '../lib/last-director-guard.js'
 import { resolveAnyMembership } from '../lib/resolve-membership.js'
 import { withRateLimit } from '../lib/with-rate-limit.js'
 
 const sql = neon(process.env.DATABASE_URL ?? '')
-
-interface OrgRow extends OrgRecord {
-  name: string
-}
 
 async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST' && req.method !== 'DELETE') {
@@ -92,63 +87,45 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   }
 
   try {
-    const [orgs, membership] = await Promise.all([
-      sql`SELECT id, name, domain FROM organizations` as unknown as Promise<OrgRow[]>,
-      // Any director can add any email at any domain as an active member
-      // (by design -- cross-domain membership is supported), so this must
-      // rank an active director row first: picking the newest row would let
-      // a director of org X hijack the session of someone who already
-      // belongs to org Y, and picking the oldest row of any role/status
-      // would show a director someone ELSE's older, unrelated membership
-      // instead of the org they actually manage.
-      resolveAnyMembership(sql, email),
-    ])
-
+    // Any director can invite any email at any domain (by design --
+    // cross-domain membership is supported), so this must rank an active
+    // director row first: picking the newest row would let a director of
+    // org X hijack the session of someone who already belongs to org Y,
+    // and picking the oldest row of any role/status would show a director
+    // someone ELSE's older, unrelated membership instead of the org they
+    // actually manage.
+    const membership = await resolveAnyMembership(sql, email)
     const existingMember: OrgMemberRecord | null = membership
       ? { orgId: membership.orgId, email, role: membership.role, status: membership.status }
       : null
 
-    const resolution = resolveSessionState(email, existingMember, orgs)
+    const resolution = resolveSessionState(existingMember)
 
-    if (resolution.state === 'needs_onboarding') {
-      res.status(200).json({ state: 'needs_onboarding' })
+    // No organisation: a personal account. Signing in never creates an
+    // organisation or a join request on its own.
+    if (resolution.state === 'none') {
+      res.status(200).json({ state: 'none' })
       return
     }
 
+    const orgRows = (await sql`SELECT name FROM organizations WHERE id = ${resolution.orgId}`) as { name: string }[]
+    const org = { id: resolution.orgId, name: orgRows[0]?.name ?? '' }
+
     if (resolution.state === 'active') {
-      const org = orgs.find((candidate) => candidate.id === resolution.orgId)
-      res.status(200).json({
-        state: 'active',
-        org: { id: resolution.orgId, name: org?.name ?? '' },
-        role: resolution.role,
-      })
+      res.status(200).json({ state: 'active', org, role: resolution.role })
       return
     }
 
     if (resolution.state === 'invited') {
-      const org = orgs.find((candidate) => candidate.id === resolution.orgId)
       const inviter = (await sql`
         SELECT invited_by FROM org_members WHERE org_id = ${resolution.orgId} AND lower(email) = lower(${email})
       `) as { invited_by: string | null }[]
-      res.status(200).json({
-        state: 'invited',
-        org: { id: resolution.orgId, name: org?.name ?? '' },
-        invitedBy: inviter[0]?.invited_by ?? null,
-      })
+      res.status(200).json({ state: 'invited', org, invitedBy: inviter[0]?.invited_by ?? null })
       return
     }
 
-    // state === 'pending'. If there was no existing row, this is a
-    // brand-new domain auto-join -- create the pending row now.
-    if (!existingMember) {
-      await sql`
-        INSERT INTO org_members (org_id, email, role, status)
-        VALUES (${resolution.orgId}, ${email.toLowerCase()}, 'member', 'pending')
-        ON CONFLICT (org_id, lower(email)) DO NOTHING
-      `
-    }
-    const org = orgs.find((candidate) => candidate.id === resolution.orgId)
-    res.status(200).json({ state: 'pending', org: { id: resolution.orgId, name: org?.name ?? '' } })
+    // A join request the caller chose to send (see org-onboarding.ts).
+    res.status(200).json({ state: 'pending', org })
   } catch (error) {
     console.error('[org-session] database query failed', error)
     res.status(500).json({ error: 'internal error' })

@@ -12,6 +12,8 @@ import { renderTabStrip, folderTabDomId, FOLDER_PANEL_ID } from './TabStrip'
 import { renderPopoverMenu } from './PopoverMenu'
 import { renderLibrary } from './Library'
 import { AIRE_LIBRARY, type LibraryItem } from '../shared/library'
+import { renderFeedbackForm, type FeedbackState } from './FeedbackForm'
+import type { FeedbackInput } from '../shared/qa/feedback'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 import type { OrgSessionState } from '../shared/org-session'
 import type { ProviderId } from '../shared/auth/providers'
@@ -23,6 +25,14 @@ export type View =
   | { mode: 'org-onboarding' }
   | { mode: 'manage-org' }
   | { mode: 'library' }
+  | { mode: 'feedback' }
+
+/** Tester-build state. Absent in the Chrome Web Store build, which then
+ * renders no feedback entry point at all. */
+export interface QaViewState {
+  buildLabel: string
+  feedback: FeedbackState
+}
 
 export interface TabViewState {
   tabs: ToolTab[]
@@ -47,6 +57,9 @@ export interface SettingsState {
   successCount: number | null
   signingIn: boolean
   orgResolving: boolean
+  /** Create-organisation form: last error, and whether a request is in flight. */
+  onboardingError?: string | null
+  onboardingBusy?: boolean
 }
 
 export interface RenderContext {
@@ -81,6 +94,7 @@ export interface RenderContext {
   onSelectTeamTab: (tabId: string) => void
   onOnboardingSubmit: (data: { orgName: string; initialMemberEmails: string[] }) => void
   onOnboardingCancel: () => void
+  onOpenCreateOrg: () => void
   onOpenManageOrg: () => void
   onLeaveOrg: () => void
   onAcceptInvite: () => void
@@ -102,6 +116,10 @@ export interface RenderContext {
   onDeletePrompt: (id: string) => void
   onEditPromptClick: (prompt: OrgPrompt) => void
   onCancelEditPrompt: () => void
+  onOpenFeedback: () => void
+  onFeedbackSubmit: (input: FeedbackInput) => void
+  onFeedbackSendAnother: () => void
+  onFeedbackBack: () => void
 }
 
 export function withMovedId(
@@ -139,6 +157,7 @@ export function renderApp(
   teamActiveTabId: string | null,
   manageOrgState: ManageOrgState,
   context: RenderContext,
+  qa: QaViewState | null = null,
 ): void {
   root.innerHTML = ''
 
@@ -182,9 +201,24 @@ export function renderApp(
     return
   }
 
+  if (view.mode === 'feedback' && qa) {
+    root.appendChild(
+      renderFeedbackForm({
+        ...qa.feedback,
+        signedIn: session !== null,
+        buildLabel: qa.buildLabel,
+        onSubmit: context.onFeedbackSubmit,
+        onSendAnother: context.onFeedbackSendAnother,
+        onBack: context.onFeedbackBack,
+      }),
+    )
+    return
+  }
+
   if (view.mode === 'settings') {
     root.appendChild(
       renderSettingsPanel({
+        qa: qa ? { buildLabel: qa.buildLabel, onOpenFeedback: context.onOpenFeedback } : null,
         onExport: context.onExport,
         onImport: context.onImport,
         onBack: context.onSettingsBack,
@@ -199,6 +233,7 @@ export function renderApp(
         onOpenManageOrg: context.onOpenManageOrg,
         onLeaveOrg: context.onLeaveOrg,
         onAcceptInvite: context.onAcceptInvite,
+        onCreateOrg: context.onOpenCreateOrg,
       }),
     )
     return
@@ -206,7 +241,12 @@ export function renderApp(
 
   if (view.mode === 'org-onboarding') {
     root.appendChild(
-      renderOrgOnboarding({ onSubmit: context.onOnboardingSubmit, onCancel: context.onOnboardingCancel }),
+      renderOrgOnboarding({
+        onSubmit: context.onOnboardingSubmit,
+        onCancel: context.onOnboardingCancel,
+        error: settingsState.onboardingError,
+        busy: settingsState.onboardingBusy,
+      }),
     )
     return
   }

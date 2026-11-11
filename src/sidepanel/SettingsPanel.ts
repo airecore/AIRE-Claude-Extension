@@ -2,6 +2,7 @@ import type { OrgSessionState } from '../shared/org-session'
 import { enabledProviders } from '../shared/auth/providers'
 import type { ProviderId } from '../shared/auth/providers'
 import { LINKS, extensionVersion } from '../shared/links'
+import { QA_ENABLED } from '../shared/qa/config'
 
 export interface SettingsPanelContext {
   onExport: () => void
@@ -21,6 +22,10 @@ export interface SettingsPanelContext {
   /** Withdraw from the current org (member), cancel a pending request, or decline an invite. */
   onLeaveOrg: () => void
   onAcceptInvite: () => void
+  /** Opens the optional "Create an organisation" form. */
+  onCreateOrg?: () => void
+  /** Tester build only: the feedback entry point and build label. */
+  qa?: { buildLabel: string; onOpenFeedback: () => void } | null
 }
 
 export function inviteText(orgName: string, invitedBy: string | null): string {
@@ -153,6 +158,17 @@ function renderAccount(context: SettingsPanelContext): HTMLElement {
     actions.appendChild(actionButton('Cancel request', context.onLeaveOrg))
   } else if (context.orgResolving) {
     whoText.appendChild(loadingLine('Checking organisation...'))
+  } else if (org?.state === 'none') {
+    // A personal account: everything works as before; an organisation is
+    // something you're invited to, or optionally create.
+    body.appendChild(
+      el(
+        'p',
+        'settings-hint',
+        'Personal account. If an admin invites you to an organisation, the invite will show up here.',
+      ),
+    )
+    if (context.onCreateOrg) actions.appendChild(actionButton('Create an organisation', context.onCreateOrg))
   }
 
   actions.appendChild(actionButton('Sign out', context.onSignOut))
@@ -192,6 +208,23 @@ function renderBackup(context: SettingsPanelContext): HTMLElement {
     success.setAttribute('role', 'status')
     body.appendChild(success)
   }
+  return section
+}
+
+/** Tester build only. The store build has no QA config and never shows it. */
+function renderTesterCard(qa: { buildLabel: string; onOpenFeedback: () => void }): HTMLElement {
+  const { section, body } = card('settings-tester', 'Tester build')
+  const actions = el('div', 'settings-actions')
+  actions.appendChild(actionButton('Send feedback or report a problem', qa.onOpenFeedback, true))
+  body.appendChild(actions)
+  body.appendChild(
+    el(
+      'p',
+      'settings-hint',
+      `This build reports errors and which features you use to the AIRE team while you're signed in, to help testing. ` +
+        `It never sends your prompts, buttons or Claude conversations. Build ${qa.buildLabel}.`,
+    ),
+  )
   return section
 }
 
@@ -255,6 +288,7 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
   container.appendChild(el('h2', 'settings-heading', 'Settings'))
   container.appendChild(renderAccount(context))
   container.appendChild(renderBackup(context))
+  if (QA_ENABLED && context.qa) container.appendChild(renderTesterCard(context.qa))
   container.appendChild(renderHelp())
   container.appendChild(renderAbout())
   return container

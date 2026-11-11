@@ -50,7 +50,7 @@ test('signing in as a director shows shared prompts, roster, and analytics', asy
   await expect(page.getByRole('button', { name: 'Manage Organisation' })).toBeVisible()
 
   // The main list's Team section shows the shared prompt too.
-  await page.getByRole('button', { name: /back/i }).click()
+  await page.getByRole('button', { name: 'Back to tools' }).click()
   await expect(page.getByText('Acme Inc')).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toBeVisible()
 
@@ -112,7 +112,7 @@ test('a plain member sees the Team section but not Manage Organisation, and can 
   await expect(page.getByRole('button', { name: 'Manage Organisation' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Leave organisation' })).toBeVisible()
 
-  await page.getByRole('button', { name: /back/i }).click()
+  await page.getByRole('button', { name: 'Back to tools' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Team prompt' })).toBeVisible()
 })
 
@@ -146,9 +146,54 @@ test('an invited person sees who invited them and can accept, landing as a membe
   await expect(page.getByRole('button', { name: 'Decline' })).toBeVisible()
 
   // The list view shows the invite card; nothing shared is visible yet.
-  await page.getByRole('button', { name: /back/i }).click()
+  await page.getByRole('button', { name: 'Back to tools' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Accept', exact: true }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Accept', exact: true })).toHaveCount(0)
+})
+
+test('a new account is a personal account: signing in never forces creating an organisation', async ({ context }) => {
+  const page = await openMockedSidepanel(context, { email: 'newbie@example.test', orgSession: { state: 'none' } })
+
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.locator('.settings-hint').getByText('Signed in as newbie@example.test')).toBeVisible()
+  await expect(page.getByText(/Personal account/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Create an organisation' })).toHaveCount(0)
+
+  // Personal buttons work as normal while signed in.
+  await page.getByRole('button', { name: 'Back to tools' }).click()
+  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /write your own/i }).click()
+  await page.getByRole('textbox').first().fill('Mine')
+  await page.locator('textarea').fill('My own prompt')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Mine' })).toBeVisible()
+
+  // Creating an organisation is optional, and cancelling keeps you signed in.
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Create an organisation' }).click()
+  await expect(page.getByRole('heading', { name: 'Create an organisation' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.locator('.settings-hint').getByText('Signed in as newbie@example.test')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create an organisation' })).toBeVisible()
+})
+
+test('a personal account can choose to create an organisation and becomes its admin', async ({ context }) => {
+  const page = await openMockedSidepanel(context, {
+    email: 'founder@newco.test',
+    orgSession: { state: 'none' },
+    onboardingResult: { outcome: 'created', org: { id: 'org-9', name: 'NewCo' }, role: 'director' },
+    sessionAfterOnboarding: { state: 'active', org: { id: 'org-9', name: 'NewCo' }, role: 'director' },
+  })
+
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Create an organisation' }).click()
+  await page.getByRole('textbox', { name: 'Organisation name' }).fill('NewCo')
+  await page.getByRole('button', { name: 'Create organisation' }).click()
+
+  await expect(page.getByRole('button', { name: 'Manage Organisation' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create an organisation' })).toHaveCount(0)
 })

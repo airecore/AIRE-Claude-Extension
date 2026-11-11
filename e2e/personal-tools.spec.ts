@@ -90,7 +90,9 @@ test('creating a tab and moving a button to it filters the list by tab', async (
   const generalItem = page.getByRole('listitem').filter({ hasText: 'General item' })
   await generalItem.getByRole('button', { name: 'More actions for General item' }).click()
   await generalItem.getByRole('menuitem', { name: 'Edit' }).click()
-  await page.getByRole('button', { name: 'Tab' }).click() // dropdown trigger
+  // Exact: the list view's "Add tab" button also contains "Tab", and can
+  // still be on screen for a moment before the form renders.
+  await page.getByRole('button', { name: 'Tab', exact: true }).click() // dropdown trigger
   await page.getByRole('option', { name: 'Research' }).click()
   await page.getByRole('button', { name: 'Save' }).click()
 

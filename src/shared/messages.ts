@@ -28,3 +28,12 @@ export interface GetUsageRequest {
 }
 
 export type GetUsageResponse = { ok: true; usage: UsageSnapshot } | { ok: false }
+
+/** Tester build only: a defect seen by the content script, forwarded to
+ * the service worker, which queues it (see src/content/qa-report.ts). */
+export interface QaReportMessage {
+  type: 'QA_REPORT'
+  name: string
+  message: string
+  stack?: string
+}

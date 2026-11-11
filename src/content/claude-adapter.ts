@@ -36,7 +36,8 @@ function findChatInput(): HTMLElement | null {
 export async function insertPrompt(prompt: string): Promise<InsertPromptResponse> {
   const input = await pollFor(findChatInput, INPUT_POLL_INTERVAL_MS, INPUT_POLL_TIMEOUT_MS)
   if (!input) {
-    console.error('[Claude Tools] chat input not found within timeout')
+    // warn, not error: content-script.ts reports this as a named QA defect.
+    console.warn('[Claude Tools] chat input not found within timeout')
     return {
       ok: false,
       error: 'input_not_found',
@@ -47,7 +48,7 @@ export async function insertPrompt(prompt: string): Promise<InsertPromptResponse
   input.focus()
   const inserted = document.execCommand('insertText', false, prompt)
   if (!inserted || isInputEmpty(input)) {
-    console.error('[Claude Tools] prompt insertion did not take effect')
+    console.warn('[Claude Tools] prompt insertion did not take effect')
     return {
       ok: false,
       error: 'insert_failed',

@@ -1859,3 +1859,36 @@ select {
   border-color: var(--accent-solid-hover);
   color: var(--accent-text-on);
 }
+
+/* --- Tester build: feedback ----------------------------------------- */
+
+.settings-subheading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.qa-section {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.feedback-form .feedback-attach {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.feedback-form .settings-error {
+  margin: 0;
+}
+
+.edit-form-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -78,7 +78,7 @@ async function importShowcase(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click()
   await page.locator('.settings-file-input').setInputFiles(join(ROOT, 'examples/showcase.json'))
   await expect(page.locator('.settings-success')).toBeVisible()
-  await page.getByRole('button', { name: /back/i }).click()
+  await page.getByRole('button', { name: 'Back to tools' }).click()
   await page.locator('.folder-tab', { hasText: 'Writing' }).first().click()
 }
 
@@ -122,7 +122,7 @@ test('store screenshots and promo tile', async ({ context }) => {
   // Same browser profile as scene 1, so the demo buttons are already there.
   const team = await openPanel(context, TEAM)
   await signIn(team)
-  await team.getByRole('button', { name: /back/i }).click()
+  await team.getByRole('button', { name: 'Back to tools' }).click()
   await team.locator('.folder-tab', { hasText: 'Writing' }).first().click()
   await expect(team.getByText('Follow-up email after a demo')).toBeVisible()
   await compose(context, await team.screenshot(), '2-team-prompts.png', 'Shared team prompts',

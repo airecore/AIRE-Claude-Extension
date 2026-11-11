@@ -106,6 +106,11 @@ test('a missing chat input is reported as a clean error, not a crash', async ({ 
 
   expect(response.ok).toBe(false)
   expect((response as { error: string }).error).toBe('input_not_found')
+
+  // The tester build forwards it to the service worker as a named QA
+  // defect -- the break most likely to come from claude.ai changing.
+  const sent = await page.evaluate(() => (window as unknown as { __sentMessages: unknown[] }).__sentMessages)
+  expect(sent).toContainEqual(expect.objectContaining({ type: 'QA_REPORT', name: 'insert_input_not_found' }))
 })
 
 test('sending the message (clearing the input after a hold) reports PROMPT_SENT for analytics', async ({

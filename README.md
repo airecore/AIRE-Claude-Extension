@@ -1,10 +1,83 @@
 # AI Ready Tools Extension
 
-A Chrome extension that adds a sidebar of configurable buttons to
-[claude.ai](https://claude.ai). Each button holds a saved prompt or a
-skill invocation; clicking it types that text into Claude's chat box so
-you can review (and edit) it before sending — **nothing is ever sent
-automatically**.
+Saved prompts for [claude.ai](https://claude.ai), one click away in a
+sidebar. Clicking a button types the prompt into Claude's chat box for
+you to check. **Nothing is ever sent automatically.**
+
+## For testers
+
+Thanks for helping test! You don't need to install anything except Chrome.
+
+### 1. Install it
+
+1. **Download** [`aire-extension-tester.zip`](https://github.com/airecore/AIRE-Claude-Extension/releases/download/tester-latest/aire-extension-tester.zip).
+2. **Unzip it** somewhere you'll keep it, such as Documents (not
+   Downloads). You'll get a folder called `aire-extension-tester`.
+3. In Chrome, go to **`chrome://extensions`**.
+4. Turn on **Developer mode** (switch in the top-right corner).
+5. Click **Load unpacked** and choose the `aire-extension-tester` folder.
+6. Click the puzzle-piece icon in Chrome's toolbar and **pin** AIRE.
+
+Don't move or delete the folder afterwards: Chrome runs the extension
+from it.
+
+### 2. Sign in
+
+1. Open [claude.ai](https://claude.ai) and click the **AIRE** icon in the
+   toolbar. The sidebar opens.
+2. Click **⚙ Settings** → **Sign in**, and use your work email.
+
+Please stay signed in while testing, so any problems you hit are sent to
+the team automatically.
+
+### 3. Try everything
+
+- **+ Add tool** to make a button, then click it to put the prompt into
+  Claude's chat box.
+- Edit, delete and drag buttons to reorder them; make tabs; try
+  **Sort by most used**.
+- Settings → **Export tools** and **Import tools**.
+- If you're in an organisation, try the shared Team prompts too.
+
+Try to break it: odd inputs, lots of buttons, quick clicking, reloading
+pages.
+
+### 4. Report problems and ideas
+
+Settings → **Send feedback or report a problem**. Say what you clicked,
+what you expected and what happened. Leave **Attach my recent activity**
+ticked, as it helps us find the cause.
+
+Errors are also reported automatically. The tester build never sends your
+prompts, buttons or Claude conversations.
+
+### 5. Getting a new version
+
+When you're told there's an update:
+
+1. Download the zip again from the same link and unzip it.
+2. Replace your old `aire-extension-tester` folder with the new one.
+3. In `chrome://extensions`, click the **reload** icon on AIRE's card,
+   then reload your claude.ai tab.
+
+Your buttons are kept. (Removing the extension from Chrome would delete
+them, so use reload instead.)
+
+### If something isn't working
+
+- **"Reload the Claude tab and try again"**: reload the claude.ai tab.
+  This happens to tabs that were open before the extension was installed
+  or updated.
+- **"Couldn't find Claude's chat box"**: open a normal Claude chat (not
+  Settings or Projects) and try again.
+- **Sign-in fails**: your buttons still work without it. Report it from
+  Settings → **Send feedback or report a problem**, or tell the team.
+
+---
+
+# Everything else: developers and admins
+
+## About
 
 - **Personal buttons** work with no sign-in and no backend; they are
   stored only in the browser (`chrome.storage.local`).
@@ -16,8 +89,6 @@ Version **1.0.0** — feature-complete, tested, and prepared for the Chrome
 Web Store. What is still needed before submitting is listed in
 [Before launch](#before-launch--what-is-still-needed).
 
----
-
 ## Where everything lives
 
 | Piece | Location |
@@ -28,10 +99,23 @@ Web Store. What is still needed before submitting is listed in
 | Sign-in | Clerk development instance `innocent-lamb-6401.clerk.accounts.dev` (to be replaced by a production instance on the company domain before launch) |
 | Privacy policy | https://claude-extension-xi.vercel.app/privacy.html (source: `backend/public/privacy.html`) |
 | Store listing text and answers | [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md) |
+| Tester build download | GitHub Releases → **Tester build (latest)** (`tester-latest`), rebuilt on every push to `main` |
+| Tester QA dashboard | https://claude-extension-xi.vercel.app/qa.html (needs the `QA_DASHBOARD_KEY`); tester feedback also opens GitHub issues labelled `tester-feedback` in the private `airecore/AIRE-QA-Feedback` repository |
 
 ---
 
-## Install it for testing
+## Tester build: how it's published
+
+The tester zip linked above is built by
+`.github/workflows/tester-build.yml` and published to the **Tester build
+(latest)** release (tag `tester-latest`) on every push to `main`. You can
+also run it by hand from the Actions tab. The link at the top always
+points to the newest one. Send testers the link to this README's
+[For testers](#for-testers) section.
+
+## Install it for development
+
+### Developers: build from source
 
 You need **Node.js 22 LTS** (20 also works), **pnpm 9+** and **git**.
 
@@ -53,8 +137,8 @@ Open a claude.ai tab and click the extension's toolbar icon to open the
 sidebar. After any later `pnpm run build`, click the reload icon on the
 extension's card in `chrome://extensions`, then reload the claude.ai tab.
 
-Testers do not register, deploy or configure anything. Organisation
-sign-in uses the shared live backend.
+Organisation sign-in uses the shared live backend; nothing needs
+configuring.
 
 **Installing the prerequisites:**
 
@@ -65,7 +149,7 @@ sign-in uses the shared live backend.
 - **Linux:** install Node 22 (for example with `nvm install 22`), then
   `corepack enable`.
 
-### If organisation sign-in fails
+### If organisation sign-in fails (developer builds)
 
 Personal buttons keep working either way.
 
@@ -135,12 +219,26 @@ email code, enterprise SSO).
 4. Turn on the sign-in methods you want under **Social Connections** and
    **SSO Connections**. No code change is needed.
 
+### 3. Tester QA logging
+
+1. Re-run `backend/schema.sql` in the Neon SQL Editor (adds the
+   `qa_events` and `qa_feedback` tables).
+2. In Vercel → Settings → Environment Variables, add:
+
+   | Variable | Value |
+   |---|---|
+   | `QA_DASHBOARD_KEY` | output of `openssl rand -hex 24`; the password for `/qa.html` |
+   | `QA_GITHUB_TOKEN` | a GitHub fine-grained personal access token for the feedback repository only, with **Issues: Read and write** (optional; without it feedback is saved but no issues are opened) |
+   | `QA_GITHUB_REPO` | `airecore/AIRE-QA-Feedback`: a **private** repository, because this code repository is public and issues there would be visible to anyone. Team members added to it see every report. |
+
+3. Redeploy. Open `/qa.html` and enter the key.
+
 ### Secrets
 
 No secrets are stored in this repo. Client IDs and the public key in
 `manifest.config.ts` are public by design. `SESSION_JWT_SECRET`,
-`DATABASE_URL` and any Clerk secret key live only in Vercel environment
-variables. There is no `.env` file to create.
+`DATABASE_URL`, `QA_DASHBOARD_KEY`, `QA_GITHUB_TOKEN` and any Clerk
+secret key live only in Vercel environment variables. There is no `.env` file to create.
 
 ---
 
@@ -175,15 +273,18 @@ fill in before running it in the Neon SQL Editor.
 
 Signing in is optional; personal buttons never need it.
 
-- **The first sign-in from a company email domain creates the
-  organisation** and makes that person its **admin**. Later sign-ins from
-  the same domain become join requests ("Wants to join") that an admin
-  approves or declines.
-- **Public email domains** (`gmail.com`, `outlook.com`, …) never join
-  each other; each such sign-in starts its own organisation.
-- **Invites:** an admin can invite anyone by email. The invitee sees
-  "<admin> invited you to join <org>" the next time they sign in and
-  **accepts or declines**. Nobody is added to an organisation, or has
+- **Signing in gives you a personal account.** Nothing else happens: no
+  organisation is created and no join request is sent. Settings says
+  "Personal account".
+- **Invites are how people join.** An admin invites anyone by email. The
+  invitee sees "<admin> invited you to join <org>" in the sidebar and in
+  Settings the next time they open it, and **accepts or declines**.
+- **Creating an organisation is optional:** Settings → **Create an
+  organisation** makes you its **admin**. If your company email domain
+  already has an organisation, it sends that organisation a join request
+  ("Wants to join") for an admin to approve, instead of creating a second
+  one. Public email domains (`gmail.com`, `outlook.com`, …) never match
+  each other, so each of those creates its own organisation. Nobody is added to an organisation, or has
   their usage shared, without accepting.
 - **Leaving:** a member can leave, a requester can cancel and an invitee
   can decline, from Settings. Leaving or being removed deletes that
@@ -208,6 +309,86 @@ other by Postgres row-level security (`FORCE ROW LEVEL SECURITY`). Every
 API route is rate-limited (`backend/lib/with-rate-limit.ts`, stored in
 the `rate_limits` table), with sign-in limited per IP before any token
 is verified.
+
+---
+
+## Tester QA logging
+
+The tester build (every build except `pnpm run build:store`) reports
+back to the team so testers can try to break it before the store
+submission. The Chrome Web Store build leaves all of this out:
+`vite.config.ts` switches it off, and `build:store` fails if any QA code
+is left in the bundle.
+
+What it collects, only while the tester is **signed in**:
+
+- **Defects, automatically.** Every `console.error` in the side panel,
+  service worker and content script (the extension already logs every
+  caught failure that way), plus uncaught errors and unhandled promise
+  rejections. Each one includes the message, stack trace, build label and
+  browser version. The content script only reports its own errors, never
+  claude.ai's, and reports "couldn't find Claude's chat box" as a named
+  `insert_input_not_found` defect.
+- **Feature usage.** A fixed list of events (button run and sent, tab
+  created, import, sign-in, admin actions…) with a few plain props such as
+  the button type. The list is in `src/shared/qa/events.ts`.
+- **Feedback.** Settings → **Send feedback or report a problem**: a type,
+  a description and, if ticked, the tester's own last 40 events from the
+  past 24 hours.
+
+It never collects prompt text, button contents or anything from a Claude
+conversation, and console arguments that are objects are recorded only as
+`[object]`.
+
+Events are queued in `chrome.storage.local` (also while signed out or
+offline, up to 500), and the side panel sends them every minute in
+batches of 50. Rows older than 90 days are deleted automatically.
+
+Where to read it:
+
+- **`/qa.html`** on the backend (works on a phone). It shows defects
+  grouped by cause, a feedback inbox, feature usage, a list of
+  **features not yet tried**, testers with their build and browser, and
+  activity by day.
+- **GitHub issues** in the private
+  [`airecore/AIRE-QA-Feedback`](https://github.com/airecore/AIRE-QA-Feedback)
+  repository (see below).
+
+### The `AIRE-QA-Feedback` repository
+
+It holds no code: it exists only so tester feedback lands somewhere the
+team can discuss, assign and close it. Its main page only shows a README;
+the reports are under its **Issues** tab. It's private because this code
+repository is public.
+
+- **What creates an issue:** each report a tester sends from Settings →
+  **Send feedback or report a problem**. The issue has their message (in a
+  code block), the type (`bug`, `enhancement` or `question` label, plus
+  `tester-feedback`), the build and browser, and their recent activity if
+  they ticked the box. Their email is left out; it's on the dashboard.
+- **What doesn't:** automatic error reports. Those are grouped on the
+  dashboard instead, so one bug hit 50 times doesn't open 50 issues.
+- **How it's connected:** the backend opens issues with a fine-grained
+  GitHub token (`QA_GITHUB_TOKEN` in Vercel) that can only read and write
+  issues in this one repository. Because the repository belongs to the
+  `airecore` organisation, an organisation owner must approve the token
+  once (organisation **Settings** → **Personal access tokens** →
+  **Pending requests**). Until then, feedback still reaches the
+  dashboard but no issues are opened.
+- **Checking it works:** send a test from the extension. On the
+  dashboard, a report with a **GitHub issue** link means it worked; one
+  without a link means the token isn't approved yet, has expired, or
+  `QA_GITHUB_REPO` doesn't match the repository name.
+- **Who can see it:** anyone added to the repository (its **Settings** →
+  **Collaborators and teams**). Use **Watch** → **All Activity** to be
+  notified of each new report.
+- **Token expiry:** the token expires after the period chosen when it was
+  made (90 days). Before then, regenerate it and update `QA_GITHUB_TOKEN`
+  in Vercel, then redeploy.
+
+Every build is labelled `<version>+<commit>` (for example
+`1.0.0+3f2a1b4`), shown in Settings, so every report says exactly which
+build it came from.
 
 ---
 
@@ -239,7 +420,10 @@ pnpm.
   controller.
 - **`src/shared/`** — shared model and services: button storage,
   export/import (`backup.ts`), sign-in (`auth/`, OAuth with PKCE plus the
-  backend session token) and the `org-*` client modules.
+  backend session token) and the `org-*` client modules. `qa/` is the
+  tester QA logging (queue, error capture, event list, feedback client);
+  `src/content/qa-report.ts` is the content script's dependency-free
+  version, which forwards its defects to the service worker.
 - **`backend/`** — Vercel serverless API over Neon Postgres. `lib/`
   verifies tokens and resolves the caller's organisation and role; `api/`
   holds one file per route group. See `backend/README.md`.
@@ -268,6 +452,9 @@ pnpm.
   backend and the real claude.ai page. Run it before each release.
 - **CI** (`.github/workflows/ci.yml`) runs typecheck, all tests, the
   build and the e2e suite on every push and pull request to `main`.
+  `.github/workflows/tester-build.yml` then publishes the tester zip to
+  the **Tester build (latest)** release on every push to `main` (or run
+  it by hand from the Actions tab).
 
 ## Publishing to the Chrome Web Store
 
@@ -330,7 +517,7 @@ Store.
 4. Swap in the licensed font (if provided) and run
    `pnpm run build && pnpm run store-assets` to refresh the screenshots.
 5. Remove the test data from the database (the test organisation and
-   test accounts).
+   test accounts, and optionally `qa_events` / `qa_feedback`).
 6. `pnpm run build:store` and upload the zip to the developer dashboard
    as a **draft**. Copy the extension ID the store assigns, and add
    `https://<that-id>.chromiumapp.org/` as a redirect URI in the Clerk

@@ -9,7 +9,8 @@ export type OrgSessionState =
   | { state: 'active'; org: OrgSummary; role: 'director' | 'member' }
   | { state: 'pending'; org: OrgSummary }
   | { state: 'invited'; org: OrgSummary; invitedBy: string | null }
-  | { state: 'needs_onboarding' }
+  /** Signed in with a personal account, in no organisation. */
+  | { state: 'none' }
 
 export interface OnboardingResult {
   outcome: 'created' | 'joined_existing'
@@ -33,7 +34,8 @@ export function parseOrgSessionResponse(raw: unknown): OrgSessionState | null {
   if (!isRecord(raw)) return null
   const state = raw.state
 
-  if (state === 'needs_onboarding') return { state: 'needs_onboarding' }
+  // 'needs_onboarding' is what older backends sent for the same thing.
+  if (state === 'none' || state === 'needs_onboarding') return { state: 'none' }
 
   if (state === 'pending') {
     const org = parseOrgSummary(raw.org)
