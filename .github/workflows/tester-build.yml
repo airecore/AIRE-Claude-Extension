@@ -76,3 +76,29 @@ jobs:
               --notes "$NOTES" \
               --prerelease
           fi
+
+      # Keeps a ready-to-load copy of the tester build in the repository's
+      # extension/ folder, so "Code > Download ZIP" on GitHub gives people a
+      # folder Chrome can load directly. Pushes made with the workflow's own
+      # token don't start new workflow runs, so this can't loop.
+      - name: Update the extension/ folder in the repository
+        run: |
+          rm -rf extension
+          cp -r dist extension
+          cp .github/extension-folder-README.md extension/README.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A extension
+          if git diff --cached --quiet; then
+            echo "extension/ is already up to date"
+            exit 0
+          fi
+          git commit -q -m "chore: update the ready-to-load extension/ folder (${SHORT_SHA}) [skip ci]"
+          # Someone may have pushed meanwhile; their own run builds a newer
+          # copy, so on a conflict just leave it to that run.
+          for attempt in 1 2 3; do
+            if git pull -q --rebase origin main && git push -q origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            sleep 5
+          done
+          echo "::warning::Could not update extension/ (main moved); the next push will."

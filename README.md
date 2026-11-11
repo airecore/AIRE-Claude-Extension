@@ -10,16 +10,26 @@ Thanks for helping test! You don't need to install anything except Chrome.
 
 ### 1. Install it
 
-1. **Download** [`aire-extension-tester.zip`](https://github.com/airecore/AIRE-Claude-Extension/releases/download/tester-latest/aire-extension-tester.zip).
-2. **Unzip it** somewhere you'll keep it, such as Documents (not
-   Downloads). You'll get a folder called `aire-extension-tester`.
+1. **Download** this repository: the green **Code** button at the top of
+   this page → **Download ZIP**.
+   (Or download just the extension:
+   [`aire-extension-tester.zip`](https://github.com/airecore/AIRE-Claude-Extension/releases/download/tester-latest/aire-extension-tester.zip).)
+2. **Unzip it** into a normal folder you'll keep, such as `C:\AIRE` on
+   Windows. **Avoid OneDrive and Downloads:** OneDrive can keep files
+   online-only, and Chrome then can't read them.
 3. In Chrome, go to **`chrome://extensions`**.
 4. Turn on **Developer mode** (switch in the top-right corner).
-5. Click **Load unpacked** and choose the `aire-extension-tester` folder.
+5. Click **Load unpacked** and choose the **`extension`** folder inside
+   what you unzipped (or the `aire-extension-tester` folder, if you used
+   the second link). The right folder has `manifest.json` directly in it.
 6. Click the puzzle-piece icon in Chrome's toolbar and **pin** AIRE.
 
 Don't move or delete the folder afterwards: Chrome runs the extension
 from it.
+
+> **"Manifest file is missing or unreadable"?** You chose the wrong
+> folder. Pick the `extension` folder inside the download, not the
+> top-level `AIRE-Claude-Extension-main` folder.
 
 ### 2. Sign in
 
@@ -55,8 +65,9 @@ prompts, buttons or Claude conversations.
 
 When you're told there's an update:
 
-1. Download the zip again from the same link and unzip it.
-2. Replace your old `aire-extension-tester` folder with the new one.
+1. Download again the same way (Code → **Download ZIP**, or the zip link)
+   and unzip it.
+2. Replace your old folder with the new one, in the same place.
 3. In `chrome://extensions`, click the **reload** icon on AIRE's card,
    then reload your claude.ai tab.
 
@@ -105,6 +116,13 @@ Web Store. What is still needed before submitting is listed in
 ---
 
 ## Tester build: how it's published
+
+`extension/` in this repository is the ready-to-load tester build, so
+**Code → Download ZIP** works for testers. Don't edit it: the Tester
+build workflow rebuilds it and commits it back (as `github-actions[bot]`)
+after every push to `main`. `backend/vercel.json` skips the Vercel deploy
+for pushes that don't touch `backend/`, so those commits don't redeploy
+the backend.
 
 The tester zip linked above is built by
 `.github/workflows/tester-build.yml` and published to the **Tester build
