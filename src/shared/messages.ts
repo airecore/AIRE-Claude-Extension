@@ -36,4 +36,5 @@ export interface QaReportMessage {
   name: string
   message: string
   stack?: string
+  props?: Record<string, string | number | boolean>
 }

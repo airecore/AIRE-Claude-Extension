@@ -109,6 +109,8 @@ test('Escape on a just-made tab removes it; double-click renames a tab in place'
   await expect(page.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
 
   await page.getByRole('tab', { name: 'General' }).dblclick()
+  // Wait for the rename box: typing before it renders loses keystrokes.
+  await expect(page.getByRole('textbox', { name: /tab name/i })).toBeFocused()
   await page.keyboard.type('📌 Pinned')
   await page.keyboard.press('Enter')
   await expect(page.getByRole('tab', { name: '📌 Pinned' })).toBeVisible()

@@ -134,3 +134,50 @@ test('sending the message (clearing the input after a hold) reports PROMPT_SENT 
     .poll(() => page.evaluate(() => (window as unknown as { __sentMessages: unknown[] }).__sentMessages))
     .toContainEqual({ type: 'PROMPT_SENT', runToken: 'tok-2' })
 })
+
+// claude.ai's markup varies between pages and over time. These check the
+// fallbacks that find its editor without the data-testid marker.
+const LAYOUTS: { name: string; html: string; editable: string }[] = [
+  {
+    name: 'a ProseMirror editor with no data-testid',
+    html: '<form><div class="ProseMirror" contenteditable="true" id="target"></div></form>',
+    editable: '#target',
+  },
+  {
+    name: 'a data-testid wrapper around the editable element',
+    html: '<div data-testid="chat-input"><div contenteditable="true" id="target"></div></div>',
+    editable: '#target',
+  },
+  {
+    name: 'an aria-labelled editor, skipping a hidden one',
+    html:
+      '<div contenteditable="true" aria-label="Write your prompt to Claude" style="display:none"></div>' +
+      '<div contenteditable="true" aria-label="Write your prompt to Claude" id="target"></div>',
+    editable: '#target',
+  },
+]
+
+for (const layout of LAYOUTS) {
+  test(`finds Claude's chat box in ${layout.name}`, async ({ context }) => {
+    const page = await context.newPage()
+    await page.setContent(layout.html)
+    await loadContentScript(page)
+
+    const response = await sendInsertPrompt(page, { type: 'INSERT_PROMPT', prompt: 'Hello from AIRE' })
+
+    expect(response).toEqual({ ok: true })
+    await expect(page.locator(layout.editable)).toHaveText('Hello from AIRE')
+  })
+}
+
+test('a missing chat box is reported with the kind of page, never the URL', async ({ context }) => {
+  const page = await context.newPage()
+  await page.setContent('<div>no editor here</div>')
+  await loadContentScript(page)
+  await sendInsertPrompt(page, { type: 'INSERT_PROMPT', prompt: 'x' })
+
+  const sent = await page.evaluate(() => (window as unknown as { __sentMessages: unknown[] }).__sentMessages)
+  const report = sent.find((m) => (m as { type?: string }).type === 'QA_REPORT') as { props?: Record<string, unknown> }
+  expect(report.props).toMatchObject({ editables: 0 })
+  expect(typeof report.props?.page).toBe('string')
+})

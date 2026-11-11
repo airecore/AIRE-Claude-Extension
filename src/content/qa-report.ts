@@ -14,12 +14,13 @@ import type { QaReportMessage } from '../shared/messages'
 
 const ENABLED = typeof __AIRE_QA__ !== 'undefined' && __AIRE_QA__ === true
 
-function send(name: string, message: string, stack: string | undefined): void {
+function send(name: string, message: string, stack: string | undefined, props?: QaReportMessage['props']): void {
   const report: QaReportMessage = {
     type: 'QA_REPORT',
     name,
     message: message.slice(0, 1000),
     stack: stack?.slice(0, 4000),
+    props,
   }
   try {
     chrome.runtime.sendMessage(report).catch(() => {
@@ -38,9 +39,10 @@ function describe(value: unknown): { message: string; stack: string | undefined 
 
 const fromExtension = (stack: string | undefined) => (stack ?? '').includes('chrome-extension://')
 
-/** Records a named defect (e.g. the chat box could not be found). */
-export function qaContentDefect(name: string, message: string): void {
-  if (ENABLED) send(name, message, new Error(message).stack)
+/** Records a named defect (e.g. the chat box could not be found), with a
+ * few plain facts about the page (never ids, URLs or page text). */
+export function qaContentDefect(name: string, message: string, props?: QaReportMessage['props']): void {
+  if (ENABLED) send(name, message, new Error(message).stack, props)
 }
 
 export function installContentQaCapture(): void {

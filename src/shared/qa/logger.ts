@@ -200,8 +200,22 @@ export function qaDefect(name: string, message: string, props?: QaProps): void {
 }
 
 /** A defect the content script forwarded (see src/content/qa-report.ts). */
-export function qaReportFromContent(name: string, message: string, stack?: string): void {
-  if (QA_ENABLED && /^[a-z0-9_]{1,64}$/.test(name)) logger().reportError(name, 'content', message, stack)
+export function qaReportFromContent(name: string, message: string, stack?: string, props?: unknown): void {
+  if (QA_ENABLED && /^[a-z0-9_]{1,64}$/.test(name)) {
+    logger().reportError(name, 'content', message, stack, primitiveProps(props))
+  }
+}
+
+/** Keeps at most 8 string/number/boolean props with short keys. */
+function primitiveProps(raw: unknown): QaProps | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const out: QaProps = {}
+  for (const [key, value] of Object.entries(raw).slice(0, 8)) {
+    if (!/^[a-z0-9_]{1,40}$/i.test(key)) continue
+    if (typeof value === 'string') out[key] = value.slice(0, 100)
+    else if (typeof value === 'number' || typeof value === 'boolean') out[key] = value
+  }
+  return out
 }
 
 export function qaFlush(token: string): Promise<void> {

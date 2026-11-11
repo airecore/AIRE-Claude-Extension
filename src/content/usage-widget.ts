@@ -10,14 +10,19 @@ const RING_RADIUS = 19
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-const WIDGET_CSS = `
+// Every colour is derived from the text colour claude.ai gives its sidebar
+// (currentColor), so the box matches whatever theme the person uses --
+// light, dark or any other -- instead of always being a dark box. Only the
+// meter fills keep fixed green / amber / red, which read on both.
+export const WIDGET_CSS = `
 #${WIDGET_ID} {
   margin: 10px 8px 8px;
   padding: 10px 10px 14px;
   border-radius: 10px;
-  background: #131210;
-  border: 1px solid #262420;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  font-family: inherit;
 }
 #${WIDGET_ID} .ctu-head {
   display: flex;
@@ -29,7 +34,7 @@ const WIDGET_CSS = `
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #8a877e;
+  color: color-mix(in srgb, currentColor 60%, transparent);
 }
 #${WIDGET_ID} .ctu-refresh {
   width: 18px;
@@ -37,7 +42,7 @@ const WIDGET_CSS = `
   border-radius: 5px;
   border: none;
   background: transparent;
-  color: #8a877e;
+  color: color-mix(in srgb, currentColor 60%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,8 +51,8 @@ const WIDGET_CSS = `
   padding: 0;
 }
 #${WIDGET_ID} .ctu-refresh:hover {
-  background: #1f1e1b;
-  color: #d8d6cf;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
 }
 #${WIDGET_ID} .ctu-rings {
   display: grid;
@@ -73,19 +78,19 @@ const WIDGET_CSS = `
   stroke-width: 4;
 }
 #${WIDGET_ID} .ctu-track {
-  stroke: #232220;
+  stroke: color-mix(in srgb, currentColor 14%, transparent);
 }
 #${WIDGET_ID} .ctu-fill {
   stroke-linecap: round;
 }
 #${WIDGET_ID} .ctu-fill.normal {
-  stroke: #6fbf73;
+  stroke: #4caf50;
 }
 #${WIDGET_ID} .ctu-fill.warning {
-  stroke: #e3ab52;
+  stroke: #e09a2d;
 }
 #${WIDGET_ID} .ctu-fill.critical {
-  stroke: #ff6b60;
+  stroke: #e5484d;
 }
 #${WIDGET_ID} .ctu-pct {
   position: absolute;
@@ -98,20 +103,20 @@ const WIDGET_CSS = `
   justify-content: center;
   font-size: 10.5px;
   font-weight: 700;
-  color: #eeece5;
+  color: inherit;
   font-variant-numeric: tabular-nums;
 }
 #${WIDGET_ID} .ctu-label {
   display: block;
   margin-top: 3px;
   font-size: 9px;
-  color: #8a877e;
+  color: color-mix(in srgb, currentColor 65%, transparent);
 }
 #${WIDGET_ID} .ctu-reset {
   display: block;
   margin-top: 2px;
   font-size: 8px;
-  color: #6b6862;
+  color: color-mix(in srgb, currentColor 50%, transparent);
   white-space: nowrap;
 }
 `
@@ -202,7 +207,7 @@ function renderRing(
   return wrap
 }
 
-function buildWidget(
+export function buildWidget(
   meters: { label: string; percent: number; severity: string; resetsAt: string | null; disabledReason: string | null }[],
 ): HTMLElement {
   const widget = document.createElement('div')

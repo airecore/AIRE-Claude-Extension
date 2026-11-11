@@ -24,13 +24,50 @@ export function isInputEmpty(input: Pick<HTMLElement, 'textContent'>): boolean {
   return (input.textContent ?? '').trim().length === 0
 }
 
-const CHAT_INPUT_SELECTOR = '[data-testid="chat-input"]'
+// How Claude's chat box is found, most specific first. claude.ai doesn't
+// promise any of these, and its markup differs between pages (new chat,
+// an existing conversation, a project) and changes over time, so relying
+// on one marker made insertion fail with "Couldn't find Claude's chat box"
+// whenever that marker was missing. The editor is a ProseMirror
+// contenteditable; the later entries recognise it without the test id.
+export const CHAT_INPUT_SELECTORS = [
+  '[data-testid="chat-input"]',
+  'div.ProseMirror[contenteditable="true"]',
+  '[contenteditable="true"][aria-label*="prompt" i]',
+  '[contenteditable="true"][aria-label*="Claude" i]',
+  'fieldset [contenteditable="true"]',
+  'form [contenteditable="true"]',
+  '[contenteditable="true"][role="textbox"]',
+] as const
 
 const INPUT_POLL_INTERVAL_MS = 150
 const INPUT_POLL_TIMEOUT_MS = 3000
 
-function findChatInput(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(CHAT_INPUT_SELECTOR)
+function isVisible(el: HTMLElement): boolean {
+  return el.getClientRects().length > 0
+}
+
+/** The editable element itself: a match may be a wrapper around it. */
+function editableWithin(el: HTMLElement): HTMLElement | null {
+  if (el.isContentEditable) return el
+  return el.querySelector<HTMLElement>('[contenteditable="true"]')
+}
+
+export function findChatInput(root: ParentNode = document): HTMLElement | null {
+  for (const selector of CHAT_INPUT_SELECTORS) {
+    for (const match of Array.from(root.querySelectorAll<HTMLElement>(selector))) {
+      const editable = editableWithin(match)
+      if (editable && isVisible(editable)) return editable
+    }
+  }
+  return null
+}
+
+/** Which kind of claude.ai page this is ("new", "chat", "project", ...),
+ * for defect reports. Only the first path segment: never ids. */
+export function pageKind(pathname: string = location.pathname): string {
+  const first = pathname.split('/').filter(Boolean)[0] ?? 'home'
+  return /^[a-z-]{1,20}$/i.test(first) ? first : 'other'
 }
 
 export async function insertPrompt(prompt: string): Promise<InsertPromptResponse> {

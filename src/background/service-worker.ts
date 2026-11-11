@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   // Only our own content script on claude.ai, never another page.
   if (m?.type !== 'QA_REPORT' || sender.id !== chrome.runtime.id || !sender.tab) return undefined
   if (typeof m.name !== 'string' || typeof m.message !== 'string') return undefined
-  qaReportFromContent(m.name, m.message, typeof m.stack === 'string' ? m.stack : undefined)
+  qaReportFromContent(m.name, m.message, typeof m.stack === 'string' ? m.stack : undefined, m.props)
   return undefined
 })
 

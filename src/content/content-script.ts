@@ -1,4 +1,4 @@
-import { insertPrompt, watchForSend } from './claude-adapter'
+import { insertPrompt, watchForSend, pageKind } from './claude-adapter'
 import { initUsageWidget, refreshWidget } from './usage-widget'
 import { fetchUsage } from './usage-client'
 import type { GetUsageRequest, InsertPromptRequest, PromptSentMessage } from '../shared/messages'
@@ -18,7 +18,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     .then((response) => {
       sendResponse(response)
       // The extension's most likely break: claude.ai changing its chat box.
-      if (!response.ok) qaContentDefect(`insert_${response.error}`, response.message)
+      if (!response.ok) {
+        qaContentDefect(`insert_${response.error}`, response.message, {
+          page: pageKind(),
+          editables: document.querySelectorAll('[contenteditable="true"]').length,
+        })
+      }
       void refreshWidget()
       if (response.ok && runToken) {
         watchForSend(() => {

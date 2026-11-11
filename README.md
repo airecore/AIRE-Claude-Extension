@@ -134,8 +134,19 @@ Then in Chrome:
 4. Select the **`dist/`** folder (not the repo root)
 
 Open a claude.ai tab and click the extension's toolbar icon to open the
-sidebar. After any later `pnpm run build`, click the reload icon on the
-extension's card in `chrome://extensions`, then reload the claude.ai tab.
+sidebar.
+
+**Getting the latest version** (no need to clone again): in the same
+folder, run
+
+```bash
+pnpm run update
+```
+
+It pulls the latest code, installs any new packages and rebuilds `dist/`.
+Then click the reload icon on the extension's card in
+`chrome://extensions` and reload the claude.ai tab. Chrome keeps loading
+the same `dist/` folder, so your buttons and sign-in are kept.
 
 Organisation sign-in uses the shared live backend; nothing needs
 configuring.
