@@ -13,9 +13,10 @@ on:
 permissions:
   contents: write
 
+# Never cancel a run mid-publish: queue the next one instead.
 concurrency:
   group: tester-build
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   tester-zip:
@@ -62,9 +63,16 @@ jobs:
           To update: replace that folder with the new one, then click the reload icon on the extension's card.
 
           This build sends error reports and feature usage (never prompt text or conversations) to the AIRE team while you're signed in. Report problems from Settings > Send feedback or report a problem."
-          gh release delete tester-latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create tester-latest aire-extension-tester.zip \
-            --target "$GITHUB_SHA" \
-            --title "Tester build (latest)" \
-            --notes "$NOTES" \
-            --prerelease
+          # Update in place rather than delete-and-recreate, so the download
+          # link in the README never goes missing while a new build publishes.
+          git tag -f tester-latest "$GITHUB_SHA"
+          git push -f origin refs/tags/tester-latest
+          if gh release view tester-latest >/dev/null 2>&1; then
+            gh release upload tester-latest aire-extension-tester.zip --clobber
+            gh release edit tester-latest --title "Tester build (latest)" --notes "$NOTES" --prerelease
+          else
+            gh release create tester-latest aire-extension-tester.zip \
+              --title "Tester build (latest)" \
+              --notes "$NOTES" \
+              --prerelease
+          fi
