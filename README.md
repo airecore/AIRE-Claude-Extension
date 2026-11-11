@@ -1,10 +1,83 @@
 # AIRE Extension
 
-A Chrome extension that adds a sidebar of configurable buttons to
-[claude.ai](https://claude.ai). Each button holds a saved prompt or a
-skill invocation; clicking it types that text into Claude's chat box so
-you can review (and edit) it before sending — **nothing is ever sent
-automatically**.
+Saved prompts for [claude.ai](https://claude.ai), one click away in a
+sidebar. Clicking a button types the prompt into Claude's chat box for
+you to check. **Nothing is ever sent automatically.**
+
+## For testers
+
+Thanks for helping test! You don't need to install anything except Chrome.
+
+### 1. Install it
+
+1. **Download** [`aire-extension-tester.zip`](https://github.com/airecore/AIRE-Claude-Extension/releases/download/tester-latest/aire-extension-tester.zip).
+2. **Unzip it** somewhere you'll keep it, such as Documents (not
+   Downloads). You'll get a folder called `aire-extension-tester`.
+3. In Chrome, go to **`chrome://extensions`**.
+4. Turn on **Developer mode** (switch in the top-right corner).
+5. Click **Load unpacked** and choose the `aire-extension-tester` folder.
+6. Click the puzzle-piece icon in Chrome's toolbar and **pin** AIRE.
+
+Don't move or delete the folder afterwards: Chrome runs the extension
+from it.
+
+### 2. Sign in
+
+1. Open [claude.ai](https://claude.ai) and click the **AIRE** icon in the
+   toolbar. The sidebar opens.
+2. Click **⚙ Settings** → **Sign in**, and use your work email.
+
+Please stay signed in while testing, so any problems you hit are sent to
+the team automatically.
+
+### 3. Try everything
+
+- **+ Add tool** to make a button, then click it to put the prompt into
+  Claude's chat box.
+- Edit, delete and drag buttons to reorder them; make tabs; try
+  **Sort by most used**.
+- Settings → **Export tools** and **Import tools**.
+- If you're in an organisation, try the shared Team prompts too.
+
+Try to break it: odd inputs, lots of buttons, quick clicking, reloading
+pages.
+
+### 4. Report problems and ideas
+
+Settings → **Send feedback or report a problem**. Say what you clicked,
+what you expected and what happened. Leave **Attach my recent activity**
+ticked, as it helps us find the cause.
+
+Errors are also reported automatically. The tester build never sends your
+prompts, buttons or Claude conversations.
+
+### 5. Getting a new version
+
+When you're told there's an update:
+
+1. Download the zip again from the same link and unzip it.
+2. Replace your old `aire-extension-tester` folder with the new one.
+3. In `chrome://extensions`, click the **reload** icon on AIRE's card,
+   then reload your claude.ai tab.
+
+Your buttons are kept. (Removing the extension from Chrome would delete
+them, so use reload instead.)
+
+### If something isn't working
+
+- **"Reload the Claude tab and try again"**: reload the claude.ai tab.
+  This happens to tabs that were open before the extension was installed
+  or updated.
+- **"Couldn't find Claude's chat box"**: open a normal Claude chat (not
+  Settings or Projects) and try again.
+- **Sign-in fails**: your buttons still work without it. Report it from
+  Settings → **Send feedback or report a problem**, or tell the team.
+
+---
+
+# Everything else: developers and admins
+
+## About
 
 - **Personal buttons** work with no sign-in and no backend; they are
   stored only in the browser (`chrome.storage.local`).
@@ -15,8 +88,6 @@ automatically**.
 Version **1.0.0** — feature-complete, tested, and prepared for the Chrome
 Web Store. What is still needed before submitting is listed in
 [Before launch](#before-launch--what-is-still-needed).
-
----
 
 ## Where everything lives
 
@@ -29,34 +100,20 @@ Web Store. What is still needed before submitting is listed in
 | Privacy policy | https://claude-extension-xi.vercel.app/privacy.html (source: `backend/public/privacy.html`) |
 | Store listing text and answers | [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md) |
 | Tester build download | GitHub Releases → **Tester build (latest)** (`tester-latest`), rebuilt on every push to `main` |
-| Tester QA dashboard | https://claude-extension-xi.vercel.app/qa.html (needs the `QA_DASHBOARD_KEY`); tester feedback also opens GitHub issues labelled `tester-feedback` |
+| Tester QA dashboard | https://claude-extension-xi.vercel.app/qa.html (needs the `QA_DASHBOARD_KEY`); tester feedback also opens GitHub issues labelled `tester-feedback` in the private `airecore/AIRE-QA-Feedback` repository |
 
 ---
 
-## Install it for testing
+## Tester build: how it's published
 
-### Testers: download the ready-made build
+The tester zip linked above is built by
+`.github/workflows/tester-build.yml` and published to the **Tester build
+(latest)** release (tag `tester-latest`) on every push to `main`. You can
+also run it by hand from the Actions tab. The link at the top always
+points to the newest one. Send testers the link to this README's
+[For testers](#for-testers) section.
 
-No Node, git or building needed.
-
-1. Download **`aire-extension-tester.zip`** from the repository's
-   Releases page → **Tester build (latest)**. It is rebuilt
-   automatically on every push to `main`.
-2. Unzip it somewhere you'll keep it (not Downloads, if that gets
-   cleared). You get an `aire-extension-tester` folder.
-3. Open `chrome://extensions`, turn on **Developer mode** (top-right),
-   click **Load unpacked** and choose the `aire-extension-tester` folder.
-4. Open a claude.ai tab and click the extension's toolbar icon.
-
-To update: replace the folder with the new one, click the reload icon on
-the extension's card, then reload the claude.ai tab. Don't delete or move
-the folder while the extension is installed, because Chrome loads it from
-there. Removing the extension from Chrome deletes your saved buttons;
-replacing the folder doesn't.
-
-Testers should sign in (Settings → **Sign in**) so their reports are
-sent; see [Tester QA logging](#tester-qa-logging). If the repository is
-private, testers need read access to it to download the release.
+## Install it for development
 
 ### Developers: build from source
 
@@ -80,8 +137,8 @@ Open a claude.ai tab and click the extension's toolbar icon to open the
 sidebar. After any later `pnpm run build`, click the reload icon on the
 extension's card in `chrome://extensions`, then reload the claude.ai tab.
 
-Testers do not register, deploy or configure anything. Organisation
-sign-in uses the shared live backend.
+Organisation sign-in uses the shared live backend; nothing needs
+configuring.
 
 **Installing the prerequisites:**
 
@@ -92,7 +149,7 @@ sign-in uses the shared live backend.
 - **Linux:** install Node 22 (for example with `nvm install 22`), then
   `corepack enable`.
 
-### If organisation sign-in fails
+### If organisation sign-in fails (developer builds)
 
 Personal buttons keep working either way.
 
@@ -171,8 +228,8 @@ email code, enterprise SSO).
    | Variable | Value |
    |---|---|
    | `QA_DASHBOARD_KEY` | output of `openssl rand -hex 24`; the password for `/qa.html` |
-   | `QA_GITHUB_TOKEN` | a GitHub fine-grained personal access token for this repository only, with **Issues: Read and write** (optional; without it feedback is saved but no issues are opened) |
-   | `QA_GITHUB_REPO` | `airecore/AIRE-Claude-Extension` (the default if unset) |
+   | `QA_GITHUB_TOKEN` | a GitHub fine-grained personal access token for the feedback repository only, with **Issues: Read and write** (optional; without it feedback is saved but no issues are opened) |
+   | `QA_GITHUB_REPO` | `airecore/AIRE-QA-Feedback`: a **private** repository, because this code repository is public and issues there would be visible to anyone. Team members added to it see every report. |
 
 3. Redeploy. Open `/qa.html` and enter the key.
 
@@ -290,8 +347,8 @@ Where to read it:
   grouped by cause, a feedback inbox, feature usage, a list of
   **features not yet tried**, testers with their build and browser, and
   activity by day.
-- **GitHub issues.** Each piece of feedback opens an issue labelled
-  `tester-feedback` (plus `bug` or `enhancement`). The tester's text is
+- **GitHub issues.** Each piece of feedback opens an issue in the private
+  `airecore/AIRE-QA-Feedback` repository, labelled `tester-feedback` (plus `bug` or `enhancement`). The tester's text is
   put in a code block, and their email is left out; it's on the
   dashboard.
 
