@@ -350,10 +350,41 @@ Where to read it:
   grouped by cause, a feedback inbox, feature usage, a list of
   **features not yet tried**, testers with their build and browser, and
   activity by day.
-- **GitHub issues.** Each piece of feedback opens an issue in the private
-  `airecore/AIRE-QA-Feedback` repository, labelled `tester-feedback` (plus `bug` or `enhancement`). The tester's text is
-  put in a code block, and their email is left out; it's on the
-  dashboard.
+- **GitHub issues** in the private
+  [`airecore/AIRE-QA-Feedback`](https://github.com/airecore/AIRE-QA-Feedback)
+  repository (see below).
+
+### The `AIRE-QA-Feedback` repository
+
+It holds no code: it exists only so tester feedback lands somewhere the
+team can discuss, assign and close it. Its main page only shows a README;
+the reports are under its **Issues** tab. It's private because this code
+repository is public.
+
+- **What creates an issue:** each report a tester sends from Settings →
+  **Send feedback or report a problem**. The issue has their message (in a
+  code block), the type (`bug`, `enhancement` or `question` label, plus
+  `tester-feedback`), the build and browser, and their recent activity if
+  they ticked the box. Their email is left out; it's on the dashboard.
+- **What doesn't:** automatic error reports. Those are grouped on the
+  dashboard instead, so one bug hit 50 times doesn't open 50 issues.
+- **How it's connected:** the backend opens issues with a fine-grained
+  GitHub token (`QA_GITHUB_TOKEN` in Vercel) that can only read and write
+  issues in this one repository. Because the repository belongs to the
+  `airecore` organisation, an organisation owner must approve the token
+  once (organisation **Settings** → **Personal access tokens** →
+  **Pending requests**). Until then, feedback still reaches the
+  dashboard but no issues are opened.
+- **Checking it works:** send a test from the extension. On the
+  dashboard, a report with a **GitHub issue** link means it worked; one
+  without a link means the token isn't approved yet, has expired, or
+  `QA_GITHUB_REPO` doesn't match the repository name.
+- **Who can see it:** anyone added to the repository (its **Settings** →
+  **Collaborators and teams**). Use **Watch** → **All Activity** to be
+  notified of each new report.
+- **Token expiry:** the token expires after the period chosen when it was
+  made (90 days). Before then, regenerate it and update `QA_GITHUB_TOKEN`
+  in Vercel, then redeploy.
 
 Every build is labelled `<version>+<commit>` (for example
 `1.0.0+3f2a1b4`), shown in Settings, so every report says exactly which
