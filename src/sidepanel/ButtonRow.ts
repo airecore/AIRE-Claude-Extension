@@ -1,5 +1,6 @@
 import type { Button } from '../shared/types'
 import { badgeFor } from '../shared/badge'
+import { renderPopoverMenu } from './PopoverMenu'
 
 export interface ButtonRowContext {
   isRunning: boolean
@@ -19,6 +20,15 @@ function dropPosition(event: DragEvent, item: HTMLElement): 'before' | 'after' {
   return event.clientY - rect.top > rect.height / 2 ? 'after' : 'before'
 }
 
+/** Edit and Delete sit behind ⋯, so the red Delete is hard to hit by
+ * mistake. */
+function renderRowMenu(button: Button, context: ButtonRowContext): HTMLElement {
+  return renderPopoverMenu(`tool-${button.id}`, `More actions for ${button.name}`, [
+    { label: 'Edit', ariaLabel: `Edit ${button.name}`, onSelect: context.onEdit },
+    { label: 'Delete', ariaLabel: `Delete ${button.name}`, danger: true, onSelect: context.onDelete },
+  ])
+}
+
 export function renderButtonRow(button: Button, context: ButtonRowContext): HTMLElement {
   const item = document.createElement('li')
   item.className = 'button-row-wrapper'
@@ -34,6 +44,7 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
     dragHandle.textContent = '☰'
     dragHandle.dataset.buttonId = button.id
     dragHandle.setAttribute('aria-label', `Reorder ${button.name}. Press arrow keys to move, or drag.`)
+    dragHandle.title = 'Drag to reorder'
     dragHandle.draggable = true
     dragHandle.addEventListener('dragstart', (event) => {
       event.dataTransfer?.setData('text/plain', button.id)
@@ -64,35 +75,21 @@ export function renderButtonRow(button: Button, context: ButtonRowContext): HTML
     row.appendChild(badge)
   }
 
+  // The name and its "Run" pill are one button, so the whole row is a big
+  // click target. The pill is CSS (::after) so innerText stays the name.
   const name = document.createElement('button')
   name.type = 'button'
   name.className = 'button-row-name'
-  name.textContent = button.name
+  const label = document.createElement('span')
+  label.className = 'button-row-label'
+  label.textContent = button.name
+  name.appendChild(label)
   name.setAttribute('aria-label', `Run ${button.name}`)
   name.disabled = context.isRunning
   name.addEventListener('click', context.onRun)
   row.appendChild(name)
 
-  const controls = document.createElement('div')
-  controls.className = 'button-row-controls'
-
-  const editButton = document.createElement('button')
-  editButton.type = 'button'
-  editButton.className = 'icon-button'
-  editButton.textContent = 'Edit'
-  editButton.setAttribute('aria-label', `Edit ${button.name}`)
-  editButton.addEventListener('click', context.onEdit)
-  controls.appendChild(editButton)
-
-  const deleteButton = document.createElement('button')
-  deleteButton.type = 'button'
-  deleteButton.className = 'icon-button icon-button-danger'
-  deleteButton.textContent = 'Delete'
-  deleteButton.setAttribute('aria-label', `Delete ${button.name}`)
-  deleteButton.addEventListener('click', context.onDelete)
-  controls.appendChild(deleteButton)
-
-  row.appendChild(controls)
+  row.appendChild(renderRowMenu(button, context))
   item.appendChild(row)
 
   if (reorderable) {

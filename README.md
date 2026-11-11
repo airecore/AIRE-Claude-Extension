@@ -1,4 +1,4 @@
-# AIRE Extension
+# AI Ready Tools Extension
 
 A Chrome extension that adds a sidebar of configurable buttons to
 [claude.ai](https://claude.ai). Each button holds a saved prompt or a
@@ -325,7 +325,7 @@ Store.
 2. Update `src/shared/auth/providers.ts` (`CLERK_DOMAIN`,
    `CLERK_OAUTH_CLIENT_ID`) and the Vercel variables `CLERK_ISSUER` and
    `CLERK_OAUTH_CLIENT_ID`; redeploy.
-3. Replace `[CONTACT EMAIL]` in `backend/public/privacy.html` and fill
+3. Fill
    the publisher details in `CHROMEWEBSTORE.md`.
 4. Swap in the licensed font (if provided) and run
    `pnpm run build && pnpm run store-assets` to refresh the screenshots.

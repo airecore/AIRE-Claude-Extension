@@ -1,4 +1,4 @@
-# AIRE Extension — Backend
+# AI Ready Tools Extension — Backend
 
 Vercel serverless API over Neon Postgres. It powers the extension's
 optional organisation features: sign-in sessions, shared prompts and

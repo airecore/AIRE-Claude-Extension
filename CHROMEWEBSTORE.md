@@ -1,4 +1,4 @@
-# Chrome Web Store Listing — AIRE Extension
+# Chrome Web Store Listing — AI Ready Tools Extension
 
 > Last Updated: 2026-11-09. Everything the Chrome Developer Dashboard asks
 > for, ready to copy-paste. Items marked **NEEDED** come from the company
@@ -7,14 +7,14 @@
 ## Store Listing
 
 **Extension Name**
-AIRE Extension
+AI Ready Tools Extension
 
 **Short Description** (118/132 chars — matches manifest `description`)
 Saved prompts and skills for claude.ai in a sidebar, plus optional team prompt sharing. Nothing is sent automatically.
 
 **Detailed Description**
 ```
-AIRE Extension puts your best Claude prompts one click away. Save prompts and skills as buttons in a sidebar next to claude.ai; click one and it is typed into Claude's chat box so you can review and edit it before you press Send. The extension never sends a message for you.
+AI Ready Tools Extension puts your best Claude prompts one click away. Save prompts and skills as buttons in a sidebar next to claude.ai; click one and it is typed into Claude's chat box so you can review and edit it before you press Send. The extension never sends a message for you.
 
 YOUR PROMPT LIBRARY
 Save any prompt, or a skill such as /summary, as a named button.
@@ -105,7 +105,7 @@ licensed font is swapped in.
 `backend/public/privacy.html`. Currently
 https://claude-extension-xi.vercel.app/privacy.html;
 update after the production backend URL is set.
-**NEEDED**: fill in the contact email in that file (`[CONTACT EMAIL]`).
+Contact email in that file: hello@getaiready.now.
 
 ## Distribution
 
@@ -117,7 +117,7 @@ rollout, or Unlisted (anyone with the link). Public later if wanted.
 
 **Publisher Name**: **NEEDED** (company-owned developer account)
 **Contact Email**: **NEEDED** (monitored — Google sends policy notices here)
-**Support URL / Email**: **NEEDED**
+**Support URL / Email**: https://getaiready.now/au/contact / hello@getaiready.now
 **Homepage URL**: https://getaiready.now/au
 
 ## Version History

@@ -10,6 +10,7 @@ const FIXTURE_DIR = fileURLToPath(new URL('./fixtures-data', import.meta.url))
 
 test('export downloads a valid v2 backup of the current buttons', async ({ sidepanel: page }) => {
   await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('Exported Prompt')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('some text')
   await page.getByRole('button', { name: 'Save' }).click()
@@ -30,6 +31,7 @@ test('export downloads a valid v2 backup of the current buttons', async ({ sidep
 
 test('import adds buttons from a backup file without touching existing ones', async ({ sidepanel: page }) => {
   await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('Already here')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('pre-existing')
   await page.getByRole('button', { name: 'Save' }).click()
@@ -48,6 +50,7 @@ test('import adds buttons from a backup file without touching existing ones', as
 
 test('a corrupt import file leaves existing buttons untouched and shows an error', async ({ sidepanel: page }) => {
   await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('Survivor')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('should not be lost')
   await page.getByRole('button', { name: 'Save' }).click()

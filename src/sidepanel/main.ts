@@ -11,6 +11,7 @@ import {
   type SettingsState,
 } from './render'
 import type { Button, ToolTab } from '../shared/types'
+import type { LibraryItem } from '../shared/library'
 import type { InsertPromptRequest, InsertPromptResponse, GetUsageRequest, GetUsageResponse } from '../shared/messages'
 import { parseBackup, serializeBackup } from '../shared/backup'
 import { getTabPrefs, setActiveTab, setDefaultTab, resolveActiveTabId } from '../shared/tab-prefs'
@@ -67,6 +68,11 @@ let view: View = { mode: 'list' }
 let tabs: ToolTab[] = []
 let activeTabId: string | null = null
 let defaultTabId: string | null = null
+// The tab being renamed in place on the tab strip, and (if it was just
+// made with "+ New") that tab's id, so Escape can undo the creation.
+let editingTabId: string | null = null
+let freshTabId: string | null = null
+let tabBeforeFresh: string | null = null
 let sortMode: 'manual' | 'most-used' = 'manual'
 let buttonUsage: ButtonUsageMap = {}
 let orgAnalytics: OrgAnalytics | null = null
@@ -338,7 +344,7 @@ async function refresh(root: HTMLElement): Promise<void> {
     renderApp(
       root,
       visibleButtons,
-      { tabs, activeTabId, defaultTabId, sortMode, buttonUsage, allButtons: buttons },
+      { tabs, activeTabId, defaultTabId, editingTabId, sortMode, buttonUsage, allButtons: buttons },
       view,
       runState,
       settingsState,
@@ -421,8 +427,27 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onAddClick: () => {
         clearRunErrors()
+        view = { mode: 'library' }
+        void refresh(root)
+      },
+      onWriteOwnTool: () => {
         view = { mode: 'form', button: null }
         void refresh(root)
+      },
+      onLibraryDone: () => {
+        view = { mode: 'list' }
+        void refresh(root)
+      },
+      onLibraryAdd: async (item: LibraryItem) => {
+        try {
+          await toolService.createButton(item.name, item.prompt, item.type, activeTabId ?? undefined)
+          const tabName = tabs.find((t) => t.id === activeTabId)?.name
+          announce(tabName ? `Added ${item.name} to ${tabName}.` : `Added ${item.name}.`)
+          await refresh(root)
+        } catch (error) {
+          console.error('[Claude Tools] failed to add library tool', error)
+          root.textContent = 'Something went wrong adding that tool. Check the console for details.'
+        }
       },
       onEdit: (button: Button) => {
         clearRunErrors()
@@ -511,23 +536,41 @@ async function refresh(root: HTMLElement): Promise<void> {
         clearRunErrors()
         try {
           const created = await toolService.createTab('New tab')
+          tabBeforeFresh = activeTabId
           activeTabId = created.id
           await setActiveTab(created.id)
-          view = { mode: 'tabs' }
+          // Name it right there on the tab.
+          editingTabId = created.id
+          freshTabId = created.id
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to create tab', error)
           root.textContent = 'Something went wrong creating that tab. Check the console for details.'
         }
       },
-      onManageTabs: () => {
-        clearRunErrors()
-        view = { mode: 'tabs' }
+      onStartRenameTab: (id: string) => {
+        editingTabId = id
+        if (activeTabId !== id) {
+          activeTabId = id
+          void setActiveTab(id)
+        }
         void refresh(root)
       },
-      onTabsBack: () => {
-        view = { mode: 'list' }
-        void refresh(root)
+      onCancelRenameTab: async (id: string) => {
+        editingTabId = null
+        if (freshTabId === id) {
+          // Escape on a tab that was only just made: undo making it. It is
+          // empty, so there is nothing to confirm.
+          freshTabId = null
+          try {
+            await toolService.deleteTab(id, null)
+            activeTabId = tabBeforeFresh
+            await setActiveTab(tabBeforeFresh)
+          } catch (error) {
+            console.error('[Claude Tools] failed to remove new tab', error)
+          }
+        }
+        await refresh(root)
       },
       onReorderTabs: async (orderedIds: string[]) => {
         try {
@@ -551,6 +594,8 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       onRenameTab: async (id: string, name: string, emoji: string | null) => {
+        editingTabId = null
+        if (freshTabId === id) freshTabId = null
         try {
           await toolService.updateTab(id, { name, emoji })
           await refresh(root)
@@ -948,6 +993,15 @@ async function refresh(root: HTMLElement): Promise<void> {
       focusHandleId = null
     }
     restoreTyping(root, typing)
+    // A tab name being typed in place takes focus, with the text selected
+    // the first time so typing replaces "New tab".
+    if (editingTabId) {
+      const input = root.querySelector<HTMLInputElement>('.folder-tab-input')
+      if (input && document.activeElement !== input) {
+        input.focus()
+        input.select()
+      }
+    }
   } catch (error) {
     console.error('[Claude Tools] failed to load buttons', error)
     root.textContent = 'Something went wrong loading your tools. Check the console for details.'

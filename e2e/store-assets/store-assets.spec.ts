@@ -79,7 +79,7 @@ async function importShowcase(page: Page): Promise<void> {
   await page.locator('.settings-file-input').setInputFiles(join(ROOT, 'examples/showcase.json'))
   await expect(page.locator('.settings-success')).toBeVisible()
   await page.getByRole('button', { name: /back/i }).click()
-  await page.locator('.tab-chip', { hasText: 'Writing' }).first().click()
+  await page.locator('.folder-tab', { hasText: 'Writing' }).first().click()
 }
 
 async function signIn(page: Page): Promise<void> {
@@ -97,7 +97,7 @@ async function compose(context: BrowserContext, panel: Buffer, file: string, eye
     <div style="flex:1">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px">
         <img src="data:image/png;base64,${ICON}" width="40" height="40" style="border-radius:10px">
-        <span style="font-weight:800;font-size:20px;letter-spacing:-0.01em">AIRE Extension</span></div>
+        <span style="font-weight:800;font-size:20px;letter-spacing:-0.01em">AI Ready Tools Extension</span></div>
       <div style="font:13px ui-monospace,Consolas,monospace;letter-spacing:.14em;color:#8b7fd4;text-transform:uppercase;margin-bottom:14px">${eyebrow}</div>
       <div style="font-size:52px;font-weight:800;line-height:1.04;letter-spacing:-0.025em;margin-bottom:20px">${title}</div>
       <div style="font-size:20px;line-height:1.5;color:#bdb6ac;max-width:500px">${body}</div>
@@ -123,7 +123,7 @@ test('store screenshots and promo tile', async ({ context }) => {
   const team = await openPanel(context, TEAM)
   await signIn(team)
   await team.getByRole('button', { name: /back/i }).click()
-  await team.locator('.tab-chip', { hasText: 'Writing' }).first().click()
+  await team.locator('.folder-tab', { hasText: 'Writing' }).first().click()
   await expect(team.getByText('Follow-up email after a demo')).toBeVisible()
   await compose(context, await team.screenshot(), '2-team-prompts.png', 'Shared team prompts',
     'One prompt library for the whole team.',
@@ -152,7 +152,7 @@ test('store screenshots and promo tile', async ({ context }) => {
   await tile.setContent(`<!doctype html><html><body style="margin:0;width:440px;height:280px;background:#16130f;color:#f2efe9;box-sizing:border-box;padding:36px;
     font-family:-apple-system,'Segoe UI',system-ui,Roboto,Arial,sans-serif;display:flex;flex-direction:column;justify-content:center">
     <img src="data:image/png;base64,${ICON}" width="56" height="56" style="border-radius:14px;margin-bottom:18px">
-    <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;line-height:1.05">AIRE Extension</div>
+    <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;line-height:1.05">AI Ready Tools Extension</div>
     <div style="font-size:16px;color:#bdb6ac;margin-top:10px;line-height:1.4">Saved prompts and team prompt sharing<br>for claude.ai</div>
   </body></html>`)
   await tile.screenshot({ path: join(OUT, 'promo-tile-440x280.png') })

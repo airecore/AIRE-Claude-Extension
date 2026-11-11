@@ -1,22 +1,17 @@
 import type { Button, ButtonType, ToolTab } from '../shared/types'
 import type { ButtonUsageMap } from '../shared/prompt-usage'
 
-// AIRE wordmark (getaiready.now). Inherits currentColor for theming.
-const AIRE_LOGO_SVG =
-  '<svg viewBox="0 0 856 223" height="22" fill="currentColor" role="img" aria-label="AIRE">' +
-  '<path transform="translate(0.244 -1.886) scale(2.1244)" d="M41.7,2.3h25.4c1.3,0,2.4.8,2.9,2.1l34.8,95.8c.8,2.2-.7,4.5-2.9,4.5h-22.9c-1.3,0-2.5-.9-2.9-2.2l-4-11.7c-.4-1.3-1.6-2.2-2.9-2.2h-30.9c-1.3,0-2.5.9-2.9,2.2l-3.9,11.7c-.4,1.3-1.6,2.2-2.9,2.2H6.3c-2.2,0-3.7-2.3-2.9-4.5L38.8,4.4c.5-1.3,1.6-2.1,2.9-2.1h0ZM65,69c.8,0,1.4-.8,1.1-1.6l-10.8-30.9c-.4-1.1-1.9-1.1-2.2,0l-10.8,30.9c-.3.8.3,1.5,1.1,1.5h21.8,0Z"></path>' +
-  '<path d="M279.41,13.91Q280.81,3 291.81,3L341.39,3Q352.39,3 350.99,13.91L325.99,209.09Q324.59,220 313.59,220L264.01,220Q253.01,220 254.41,209.09Z"></path>' +
-  '<path transform="translate(375.414 -255.964) scale(2.1244)" d="M3.2,125.2c0-1.8,1.4-3.3,3.1-3.3h58.2c19.9,0,40.6,5.1,40.6,26.9v7.3c0,12.4-7.2,19.6-19.9,21.1v1.5c11.2,1.4,18.3,6.5,18.3,18.9v7.3c0,3.6,0,9.1.9,14.9.3,2.1-1.1,4-3,4h-25.8c-1.7,0-3.1-1.5-3.1-3.3v-18.5c0-7.3-3.2-10.2-11.1-10.2h-26.9c-1.7,0-3.1,1.5-3.1,3.3v25.3c0,1.9-1.4,3.3-3.1,3.3H6.2c-1.7,0-3.1-1.5-3.1-3.3v-95.2h0ZM62.8,166.9c6.4,0,9.5-2.9,9.5-8.1v-4.2c0-5.1-3.2-8-9.5-8h-28.5c-1.7,0-3.1,1.5-3.1,3.3v13.7c0,1.9,1.4,3.3,3.1,3.3h28.5Z"></path>' +
-  '<path transform="translate(373.398 -255.752) scale(2.1244)" d="M126.5,121.8h92.3c2.4,0,4.3,1.6,4.3,3.5v17.8c0,1.9-1.9,3.5-4.3,3.5h-61.5v14.6h57.9c2.4,0,4.3,1.6,4.3,3.5v15.6c0,1.9-1.9,3.5-4.3,3.5h-57.9v15.3h62.4c2.4,0,4.3,1.6,4.3,3.5v17.8c0,1.9-1.9,3.5-4.3,3.5h-93.2c-2.4,0-4.3-1.6-4.3-3.5v-94.9c0-1.9,1.9-3.5,4.3-3.5h0Z"></path>' +
-  '</svg>'
+import { LINKS } from '../shared/links'
 import { renderButtonRow } from './ButtonRow'
 import { renderEditForm } from './EditForm'
 import { renderSettingsPanel, inviteText } from './SettingsPanel'
 import { renderTeamSection, TEAM_RUN_KEY } from './TeamSection'
 import { renderOrgOnboarding } from './OrgOnboarding'
 import { renderManageOrganisation, type ManageOrgState } from './ManageOrganisation'
-import { renderTabStrip } from './TabStrip'
-import { renderTabManager } from './TabManager'
+import { renderTabStrip, folderTabDomId, FOLDER_PANEL_ID } from './TabStrip'
+import { renderPopoverMenu } from './PopoverMenu'
+import { renderLibrary } from './Library'
+import { AIRE_LIBRARY, type LibraryItem } from '../shared/library'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 import type { OrgSessionState } from '../shared/org-session'
 import type { ProviderId } from '../shared/auth/providers'
@@ -27,15 +22,18 @@ export type View =
   | { mode: 'settings' }
   | { mode: 'org-onboarding' }
   | { mode: 'manage-org' }
-  | { mode: 'tabs' }
+  | { mode: 'library' }
 
 export interface TabViewState {
   tabs: ToolTab[]
   activeTabId: string | null
   defaultTabId: string | null
+  /** The tab whose name is being typed in place on the tab itself. */
+  editingTabId: string | null
   sortMode: 'manual' | 'most-used'
   buttonUsage: ButtonUsageMap
-  /** Every personal button across all tabs -- for tab-manager counts. */
+  /** Every personal button across all tabs -- for tab counts and the
+   * library's "Added" state. */
   allButtons: Button[]
 }
 
@@ -63,13 +61,16 @@ export interface RenderContext {
   onSelectTab: (tabId: string) => void
   onToggleSort: () => void
   onAddTab: () => void
-  onManageTabs: () => void
   onReorderTabs: (orderedIds: string[]) => void
+  onStartRenameTab: (id: string) => void
   onRenameTab: (id: string, name: string, emoji: string | null) => void
+  onCancelRenameTab: (id: string) => void
   onMoveTab: (id: string, direction: 'up' | 'down') => void
   onDeleteTab: (id: string) => void
   onSetDefaultTab: (id: string) => void
-  onTabsBack: () => void
+  onLibraryAdd: (item: LibraryItem) => void
+  onWriteOwnTool: () => void
+  onLibraryDone: () => void
   onOpenSettings: () => void
   onExport: () => void
   onImport: (file: File) => void
@@ -141,12 +142,21 @@ export function renderApp(
 ): void {
   root.innerHTML = ''
 
-  // Persistent AIRE wordmark, top-left of every view.
+  // Persistent AI Ready logo, top-left of every view. It opens the AI Ready
+  // site in a new browser tab.
   const appHeader = document.createElement('div')
   appHeader.className = 'app-header'
-  const brand = document.createElement('span')
+  const brand = document.createElement('a')
   brand.className = 'wordmark'
-  brand.innerHTML = AIRE_LOGO_SVG
+  brand.href = LINKS.homeFromLogo
+  brand.target = '_blank'
+  brand.rel = 'noopener'
+  brand.title = 'Visit AI Ready (getaiready.now)'
+  brand.setAttribute('aria-label', 'AI Ready website (opens in a new tab)')
+  const mark = document.createElement('span')
+  mark.className = 'wordmark-mark'
+  mark.setAttribute('aria-hidden', 'true')
+  brand.appendChild(mark)
   appHeader.appendChild(brand)
   root.appendChild(appHeader)
 
@@ -160,21 +170,13 @@ export function renderApp(
     return
   }
 
-  if (view.mode === 'tabs') {
-    const buttonCountByTab: Record<string, number> = {}
-    for (const button of tabState.allButtons) {
-      buttonCountByTab[button.tabId] = (buttonCountByTab[button.tabId] ?? 0) + 1
-    }
+  if (view.mode === 'library') {
+    const tab = tabState.tabs.find((t) => t.id === tabState.activeTabId) ?? null
     root.appendChild(
-      renderTabManager(tabState.tabs, {
-        defaultTabId: tabState.defaultTabId,
-        buttonCountByTab,
-        onRename: context.onRenameTab,
-        onReorder: context.onReorderTabs,
-        onDelete: context.onDeleteTab,
-        onSetDefault: context.onSetDefaultTab,
-        onAdd: context.onAddTab,
-        onBack: context.onTabsBack,
+      renderLibrary(AIRE_LIBRARY, tab, tabState.allButtons, {
+        onAdd: context.onLibraryAdd,
+        onWriteOwn: context.onWriteOwnTool,
+        onDone: context.onLibraryDone,
       }),
     )
     return
@@ -232,65 +234,121 @@ export function renderApp(
     return
   }
 
-  const header = document.createElement('div')
-  header.className = 'toolbar'
-
-  const headerActions = document.createElement('div')
-  headerActions.className = 'toolbar-actions'
+  // Settings lives in the wordmark row, labelled, so nobody has to guess
+  // what a bare gear means.
   const settingsButton = document.createElement('button')
   settingsButton.type = 'button'
   settingsButton.className = 'icon-button settings-button'
-  settingsButton.textContent = '⚙'
-  settingsButton.setAttribute('aria-label', 'Settings')
+  settingsButton.innerHTML = '<span class="gi" aria-hidden="true">⚙</span> Settings'
   settingsButton.addEventListener('click', context.onOpenSettings)
-  headerActions.appendChild(settingsButton)
-  const addButton = document.createElement('button')
-  addButton.type = 'button'
-  addButton.className = 'add-button'
-  addButton.innerHTML = '<span class="gi">+</span> Add tool'
-  addButton.addEventListener('click', context.onAddClick)
-  headerActions.appendChild(addButton)
-  header.appendChild(headerActions)
-  root.appendChild(header)
+  appHeader.appendChild(settingsButton)
 
-  if (tabState.tabs.length > 0) {
-    root.appendChild(
+  const hasTabs = tabState.tabs.length > 0
+  const activeTab = tabState.tabs.find((t) => t.id === tabState.activeTabId) ?? null
+
+  const folder = document.createElement('div')
+  folder.className = 'folder'
+
+  if (hasTabs) {
+    const countByTab: Record<string, number> = {}
+    for (const button of tabState.allButtons) {
+      countByTab[button.tabId] = (countByTab[button.tabId] ?? 0) + 1
+    }
+    folder.appendChild(
       renderTabStrip(tabState.tabs, {
         activeTabId: tabState.activeTabId,
+        editingTabId: tabState.editingTabId,
+        countByTab,
         onSelect: context.onSelectTab,
         onAdd: context.onAddTab,
-        onManage: context.onManageTabs,
         onReorder: context.onReorderTabs,
+        onStartRename: context.onStartRenameTab,
+        onRename: context.onRenameTab,
+        onCancelRename: context.onCancelRenameTab,
       }),
     )
+  }
+
+  // The panel the active tab opens onto. Everything for this tab -- its
+  // tools, sorting, and "Add tool to <tab>" -- lives inside it.
+  const panel = document.createElement('section')
+  panel.className = hasTabs ? 'folder-panel' : 'folder-panel folder-panel-standalone'
+  panel.id = FOLDER_PANEL_ID
+  if (activeTab) {
+    panel.setAttribute('role', 'tabpanel')
+    panel.setAttribute('aria-labelledby', folderTabDomId(activeTab.id))
   }
 
   // `buttons` arrives already scoped to the active tab and already sorted
   // (manual order or most-used) by main.ts.
   const visibleButtons = buttons
 
-  if (visibleButtons.length > 0 || tabState.sortMode === 'most-used') {
-    const sortRow = document.createElement('div')
-    sortRow.className = 'sort-row'
+  const panelHead = document.createElement('div')
+  panelHead.className = 'folder-head'
+  const title = document.createElement('h2')
+  title.className = 'folder-title'
+  title.textContent = activeTab
+    ? activeTab.emoji
+      ? `${activeTab.emoji} ${activeTab.name}`
+      : activeTab.name
+    : 'Your tools'
+  panelHead.appendChild(title)
+  const count = document.createElement('span')
+  count.className = 'folder-count'
+  count.textContent = visibleButtons.length === 1 ? '1 tool' : `${visibleButtons.length} tools`
+  panelHead.appendChild(count)
+
+  const headActions = document.createElement('div')
+  headActions.className = 'folder-head-actions'
+  if (visibleButtons.length > 1 || tabState.sortMode === 'most-used') {
     const sortToggle = document.createElement('button')
     sortToggle.type = 'button'
-    sortToggle.className = 'sort-toggle'
-    sortToggle.textContent =
-      tabState.sortMode === 'most-used' ? 'Sorted by most used' : 'Sort by most used'
+    sortToggle.className = 'folder-link'
+    sortToggle.textContent = 'Most used first'
     sortToggle.setAttribute('aria-pressed', String(tabState.sortMode === 'most-used'))
     sortToggle.addEventListener('click', context.onToggleSort)
-    sortRow.appendChild(sortToggle)
-    root.appendChild(sortRow)
+    headActions.appendChild(sortToggle)
   }
+  if (activeTab) {
+    // Everything you can do to a tab, in place: no separate tab screen.
+    const index = tabState.tabs.findIndex((t) => t.id === activeTab.id)
+    const isDefault = tabState.defaultTabId === activeTab.id
+    headActions.appendChild(
+      renderPopoverMenu(`tab-${activeTab.id}`, `Tab options for ${activeTab.name}`, [
+        { label: 'Rename tab', onSelect: () => context.onStartRenameTab(activeTab.id) },
+        {
+          label: 'Move left',
+          disabled: index <= 0,
+          onSelect: () => context.onMoveTab(activeTab.id, 'up'),
+        },
+        {
+          label: 'Move right',
+          disabled: index >= tabState.tabs.length - 1,
+          onSelect: () => context.onMoveTab(activeTab.id, 'down'),
+        },
+        {
+          label: isDefault ? 'Opens first ✓' : 'Open this tab first',
+          disabled: isDefault,
+          onSelect: () => context.onSetDefaultTab(activeTab.id),
+        },
+        {
+          label: 'Delete tab',
+          ariaLabel: `Delete tab ${activeTab.name}`,
+          danger: true,
+          disabled: tabState.tabs.length <= 1,
+          onSelect: () => context.onDeleteTab(activeTab.id),
+        },
+      ]),
+    )
+  }
+  panelHead.appendChild(headActions)
+  panel.appendChild(panelHead)
 
   if (visibleButtons.length === 0) {
     const empty = document.createElement('p')
     empty.className = 'empty-state'
-    empty.textContent =
-      tabState.tabs.length > 0
-        ? 'No tools in this tab yet. Add your first one with the button above.'
-        : 'No tools yet. Add your first one with the button above.'
-    root.appendChild(empty)
+    empty.textContent = hasTabs ? 'No tools in this tab yet.' : 'No tools yet.'
+    panel.appendChild(empty)
   } else {
   const list = document.createElement('ul')
   list.className = 'button-list'
@@ -309,8 +367,21 @@ export function renderApp(
       }),
     )
   })
-  root.appendChild(list)
+  panel.appendChild(list)
   }
+
+  // "Add tool" sits inside the tab and names it, so it is clear where the
+  // new tool will go. The edit form already defaults to the active tab.
+  const addButton = document.createElement('button')
+  addButton.type = 'button'
+  addButton.className = 'add-tool-button'
+  addButton.innerHTML = '<span class="gi" aria-hidden="true">+</span> '
+  addButton.append(activeTab ? `Add tool to ${activeTab.name}` : 'Add tool')
+  addButton.addEventListener('click', context.onAddClick)
+  panel.appendChild(addButton)
+
+  folder.appendChild(panel)
+  root.appendChild(folder)
 
   if (orgSession?.state === 'invited') {
     const card = document.createElement('div')

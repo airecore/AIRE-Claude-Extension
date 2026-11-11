@@ -18,10 +18,14 @@ open a fresh claude.ai tab.
 - [ ] Icon does nothing / panel disabled on a non-claude.ai tab.
 - [ ] claude.ai tab console shows `[Claude Tools] content script loaded`.
 - [ ] Rebuild + reload the card → panel and content script pick up the new build.
+- [ ] Header logo shows in light and dark mode; clicking it opens getaiready.now/au in a new tab with `utm_source=chrome-extension`.
+- [ ] Settings → **How to use the extension** expands; **Contact AIRE**, **AI training** and **Privacy policy** open in new tabs; the footer shows the version from the manifest.
 
 ## 2. Personal buttons (no sign-in)
 
-- [ ] Add a **Prompt** button → appears in the list.
+- [ ] **Add tool to <tab>** opens the library; **Add** on an item puts it in that tab and shows "Added ✓"; **Back** returns to the tab.
+- [ ] Library: **Show prompt** reveals the full text; a Claude-skills item (e.g. Create a Word document) produces a .docx in Claude with file creation turned on.
+- [ ] Add a **Prompt** button via **Write your own** → appears in the list.
 - [ ] Add a **Skill** button (e.g. `/summary`) → shows the `/` badge.
 - [ ] Click a prompt button → text lands in claude.ai's chat box, **nothing is sent**.
 - [ ] Click a skill button → claude.ai's own `/` picker opens.
@@ -30,8 +34,9 @@ open a fresh claude.ai tab.
 - [ ] Drag a row by its handle to reorder → order holds after reopening the panel.
 - [ ] Focus a row, press Arrow Up / Arrow Down → same reorder.
 - [ ] Create a second tab, move a button to it, switch tabs → button follows.
-- [ ] Rename a tab; set an emoji by typing it at the start of the name.
-- [ ] Delete a non-active tab; confirm the last tab cannot be deleted.
+- [ ] **+ New** → type the name on the tab itself → Enter saves; Escape removes the new tab.
+- [ ] Double-click a tab (or tab ⋯ → Rename tab) → rename in place; set an emoji by typing it at the start of the name.
+- [ ] Tab ⋯ → Move left / Move right, Open this tab first, Delete tab; the last tab cannot be deleted.
 - [ ] Reorder tabs by drag.
 - [ ] "Most used" toggle sorts by personal run count.
 

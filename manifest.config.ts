@@ -38,7 +38,7 @@ interface ExtensionManifest {
 
 const manifest: ExtensionManifest = {
   manifest_version: 3,
-  name: 'AIRE Extension',
+  name: 'AI Ready Tools Extension',
   version: '1.0.0',
   description: 'Saved prompts and skills for claude.ai in a sidebar, plus optional team prompt sharing. Nothing is sent automatically.',
   key: STORE_BUILD ? undefined : 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5XVB/dXgxQE8jwyqw4Rpvz/OscKGE/KeOplSBusI8gn+2mqrdh9Pq0i+HIop95bsz/KbMml+uCvgJMLVgstHlO3TxGc1E5T5u13kL/g0CoZDd5khfx2SSJVAwSWoNs3ttZT72xJ3p6TgeJbj4++b1ECTEmU41DxEvChJcdsGk91La7wZg+9Flaqv0Eh2J/qCj/1eGcmLIBNv9BfuLRw1L3MGZSN/jJFEAnSFnIcKGtdz86/EexjTcctx4RTQf7b1LQeaaz93qjZ7mCzDBC7XfHnzkJI38qaScfSd6StGRiiaE1FoWxpVMrDRLSqte7V72Eio/TiaRNHp31kcnQ4l1wIDAQAB',
