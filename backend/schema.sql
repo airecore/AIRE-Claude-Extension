@@ -373,3 +373,21 @@ create table if not exists qa_feedback (
 );
 
 create index if not exists qa_feedback_created_at_idx on qa_feedback (created_at);
+
+-- If the API connects as a different role from the one running this file,
+-- give it the same access to the QA tables that it already has to
+-- rate_limits (which the API writes on every request). Does nothing when
+-- they are the same role.
+do $$
+declare r record;
+begin
+  for r in
+    select distinct grantee from information_schema.role_table_grants
+    where table_schema = 'public' and table_name = 'rate_limits' and privilege_type = 'INSERT'
+      and grantee not in (current_user, 'PUBLIC')
+  loop
+    execute format('grant select, insert, update, delete on qa_events, qa_feedback to %I', r.grantee);
+    execute format('grant usage on all sequences in schema public to %I', r.grantee);
+    raise notice 'QA tables granted to %', r.grantee;
+  end loop;
+end $$;
