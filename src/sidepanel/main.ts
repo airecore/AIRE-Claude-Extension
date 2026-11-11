@@ -1,3 +1,7 @@
+import { installQaCapture, qaTrack, qaFlush } from '../shared/qa/logger'
+import { QA_ENABLED, buildLabel } from '../shared/qa/config'
+import { sendFeedback, type FeedbackInput } from '../shared/qa/feedback'
+import type { FeedbackState } from './FeedbackForm'
 import { ToolService } from '../shared/tool-service'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
 import { ClerkAuthAdapter } from '../shared/auth/clerk-auth-adapter'
@@ -52,6 +56,9 @@ import {
 import type { ManageOrgState } from './ManageOrganisation'
 import { TEAM_RUN_KEY } from './TeamSection'
 import { reportUsage, fetchOrgUsage, type OrgUsageSnapshot } from '../shared/usage-report'
+
+// First, so errors anywhere below are captured in the tester build.
+installQaCapture('sidepanel')
 
 const toolService = new ToolService(new ChromeLocalStorageAdapter())
 const authAdapter = new ClerkAuthAdapter()
@@ -124,6 +131,27 @@ const settingsState: SettingsState = {
   orgResolving: false,
 }
 let focusHandleId: string | null = null
+
+// --- Tester build: feedback + sending queued QA events ---------------
+const QA_BUILD_LABEL = buildLabel()
+const QA_FLUSH_INTERVAL_MS = 60 * 1000
+const emptyDraft = (): FeedbackInput => ({ category: 'bug', description: '', attachDiagnostics: true })
+const feedbackState: FeedbackState = { draft: emptyDraft(), sending: false, error: null, sent: null }
+
+/** Sends queued QA events if signed in. Safe to call often. */
+async function flushQa(): Promise<void> {
+  if (!QA_ENABLED || !session) return
+  const token = await authAdapter.getValidToken()
+  if (token) await qaFlush(token)
+}
+
+function startQaFlushing(): void {
+  if (!QA_ENABLED) return
+  setInterval(() => void flushQa(), QA_FLUSH_INTERVAL_MS)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void flushQa()
+  })
+}
 
 function clearRunErrors(): void {
   for (const [id, state] of runState) {
@@ -398,7 +426,9 @@ async function refresh(root: HTMLElement): Promise<void> {
 
           if (response.ok) {
             runState.set(button.id, { isRunning: false, error: null })
+            qaTrack('button_run', { type: button.type })
             registerPendingRun(runToken, () => {
+              qaTrack('button_sent', { type: button.type })
               void recordButtonRun(button.id).then(() => {
                 if (view.mode === 'list') void refresh(root)
               })
@@ -435,6 +465,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         clearRunErrors()
         try {
           await toolService.deleteButton(button.id)
+          qaTrack('button_deleted')
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to delete button', error)
@@ -452,6 +483,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         )
         try {
           await toolService.reorderButtons(ids)
+          qaTrack('buttons_reordered', { method: 'drag' })
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to reorder buttons', error)
@@ -469,6 +501,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         clearRunErrors()
         try {
           await toolService.reorderButtons(ids)
+          qaTrack('buttons_reordered', { method: 'keyboard' })
           focusHandleId = id
           await refresh(root)
         } catch (error) {
@@ -490,6 +523,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           } else {
             await toolService.createButton(data.name, data.prompt, data.type, data.tabId || undefined)
           }
+          qaTrack(data.id ? 'button_edited' : 'button_created', { type: data.type })
           view = { mode: 'list' }
           await refresh(root)
         } catch (error) {
@@ -505,12 +539,14 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onToggleSort: () => {
         sortMode = sortMode === 'most-used' ? 'manual' : 'most-used'
+        qaTrack('sort_toggled', { mode: sortMode })
         void refresh(root)
       },
       onAddTab: async () => {
         clearRunErrors()
         try {
           const created = await toolService.createTab('New tab')
+          qaTrack('tab_created')
           activeTabId = created.id
           await setActiveTab(created.id)
           view = { mode: 'tabs' }
@@ -532,6 +568,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       onReorderTabs: async (orderedIds: string[]) => {
         try {
           await toolService.reorderTabs(orderedIds)
+          qaTrack('tabs_reordered', { method: 'drag' })
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to reorder tabs', error)
@@ -545,6 +582,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         ;[ids[i], ids[j]] = [ids[j], ids[i]]
         try {
           await toolService.reorderTabs(ids)
+          qaTrack('tabs_reordered', { method: 'buttons' })
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to reorder tabs', error)
@@ -553,6 +591,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       onRenameTab: async (id: string, name: string, emoji: string | null) => {
         try {
           await toolService.updateTab(id, { name, emoji })
+          qaTrack('tab_renamed', { emoji: emoji !== null })
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to rename tab', error)
@@ -569,6 +608,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         if (!window.confirm(message)) return
         try {
           await toolService.deleteTab(id, null)
+          qaTrack('tab_deleted', { buttons: count })
           if (defaultTabId === id) await setDefaultTab(null)
           if (activeTabId === id) {
             activeTabId = null
@@ -582,6 +622,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onSetDefaultTab: async (id: string) => {
         defaultTabId = id
+        qaTrack('default_tab_set')
         await setDefaultTab(id)
         await refresh(root)
       },
@@ -595,6 +636,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         settingsState.error = null
         settingsState.successCount = null
         view = { mode: 'settings' }
+        qaTrack('settings_opened')
         void refresh(root)
       },
       onExport: async () => {
@@ -609,6 +651,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           link.click()
           link.remove()
           setTimeout(() => URL.revokeObjectURL(url), 0)
+          qaTrack('tools_exported', { count: buttons.length })
         } catch (error) {
           console.error('[Claude Tools] failed to export tools', error)
           settingsState.error = 'Something went wrong exporting your tools. Check the console for details.'
@@ -630,6 +673,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           }
           settingsState.error = null
           settingsState.successCount = parsed.tools.length
+          qaTrack('tools_imported', { count: parsed.tools.length })
           announce(`Imported ${parsed.tools.length} tool${parsed.tools.length === 1 ? '' : 's'}.`)
           await refresh(root)
         } catch (error) {
@@ -649,6 +693,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onSignIn: async (providerId: ProviderId) => {
         settingsState.signingIn = true
+        qaTrack('sign_in_started')
         await refresh(root)
         let result: { email: string } | null = null
         try {
@@ -658,15 +703,21 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
         if (result) {
           session = { email: result.email }
+          qaTrack('sign_in_succeeded')
+          void flushQa()
           announce(`Signed in as ${result.email}`)
           await refresh(root)
           void resolveOrgSession(root)
         } else {
+          qaTrack('sign_in_failed')
           announce('Sign in was not completed.')
           await refresh(root)
         }
       },
       onSignOut: async () => {
+        qaTrack('signed_out')
+        // Send what's queued while the token is still valid.
+        await flushQa()
         await authAdapter.signOut()
         await clearCachedOrgPrompts()
         session = null
@@ -690,6 +741,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           return
         }
         view = { mode: 'list' }
+        qaTrack('org_onboarding_submitted', { outcome: result.outcome })
         announce(result.outcome === 'created' ? `${result.org.name} created.` : `Joined ${result.org.name}.`)
         await refresh(root)
         void resolveOrgSession(root)
@@ -706,6 +758,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       },
       onOpenManageOrg: () => {
         clearRunErrors()
+        qaTrack('manage_org_opened')
         manageOrgLoading = true
         view = { mode: 'manage-org' }
         void refresh(root)
@@ -741,6 +794,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           await resolveOrgSession(root)
           return
         }
+        qaTrack('invite_accepted')
         // Re-resolve through the normal path so shared prompts, the cache
         // and usage reporting start exactly as for any active member.
         await resolveOrgSession(root)
@@ -776,6 +830,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           return
         }
         // 'left' or 'not_in_org' -- either way the caller has no membership.
+        qaTrack('org_left', { from: isInvited ? 'invite' : isPending ? 'request' : 'member' })
         orgSession = null
         orgPrompts = []
         teamPrompts = { orgName: null, tabs: [], prompts: [] }
@@ -789,12 +844,14 @@ async function refresh(root: HTMLElement): Promise<void> {
         const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         await approveOrgMember(idToken, email)
+        qaTrack('member_approved')
         await refreshOrgMembers(root)
       },
       onRemoveMember: async (email: string) => {
         const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const result = await removeOrgMember(idToken, email)
+        if (result.ok) qaTrack('member_removed')
         if (!result.ok) announce(result.error)
         await refreshOrgMembers(root)
       },
@@ -802,6 +859,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const result = await setOrgMemberRole(idToken, email, 'director')
+        if (result.ok) qaTrack('member_role_changed', { role: 'admin' })
         if (!result.ok) announce(result.error)
         await refreshOrgMembers(root)
       },
@@ -809,6 +867,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const result = await setOrgMemberRole(idToken, email, 'member')
+        if (result.ok) qaTrack('member_role_changed', { role: 'member' })
         if (!result.ok) announce(result.error)
         await refreshOrgMembers(root)
       },
@@ -816,16 +875,19 @@ async function refresh(root: HTMLElement): Promise<void> {
         const idToken = await authAdapter.getValidToken()
         if (!idToken) return
         const added = await addOrgMember(idToken, email)
+        if (added) qaTrack('member_invited')
         manageOrgAddError = added ? null : 'Something went wrong adding that member. Check the console for details.'
         await refreshOrgMembers(root)
       },
       onCreateOrgTab: (name: string) =>
         runOrgWrite(root, async (idToken) => {
           await createOrgTab(idToken, { name })
+          qaTrack('org_tab_created')
         }),
       onRenameOrgTab: (id: string, name: string, emoji: string | null) =>
         runOrgWrite(root, async (idToken) => {
           await updateOrgTab(idToken, id, { name, emoji })
+          qaTrack('org_tab_renamed')
         }),
       onDeleteOrgTab: async (id: string) => {
         const tab = teamPrompts.tabs.find((t) => t.id === id)
@@ -838,6 +900,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         if (!window.confirm(message)) return
         await runOrgWrite(root, async (idToken) => {
           const result = await deleteOrgTab(idToken, id)
+          if (result.ok) qaTrack('org_tab_deleted')
           if (!result.ok && result.status === 400) {
             announce('An organisation must keep at least one shared tab.')
           }
@@ -846,10 +909,12 @@ async function refresh(root: HTMLElement): Promise<void> {
       onReorderOrgTabs: (orderedIds: string[]) =>
         runOrgWrite(root, async (idToken) => {
           await reorderOrgTabs(idToken, orderedIds)
+          qaTrack('org_tabs_reordered')
         }),
       onCreatePrompt: (data) =>
         runOrgWrite(root, async (idToken) => {
           const created = await createOrgPrompt(idToken, data)
+          if (created) qaTrack('org_prompt_created', { type: data.type })
           promptFormError = created
             ? null
             : 'Something went wrong adding that prompt. Check the console for details.'
@@ -857,6 +922,7 @@ async function refresh(root: HTMLElement): Promise<void> {
       onUpdatePrompt: (id, data) =>
         runOrgWrite(root, async (idToken) => {
           const updated = await updateOrgPrompt(idToken, id, data)
+          if (updated) qaTrack('org_prompt_edited', { type: data.type })
           if (updated) editingPromptId = null
           promptFormError = updated
             ? null
@@ -867,6 +933,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         if (!window.confirm(`Delete the shared prompt "${prompt?.name ?? ''}"? Everyone in the organisation loses it.`)) return
         await runOrgWrite(root, async (idToken) => {
           await deleteOrgPrompt(idToken, id)
+          qaTrack('org_prompt_deleted')
         })
         // Top prompts lists every shared prompt; reload so the deleted one drops out.
         await refreshOrgAnalytics(root)
@@ -879,6 +946,53 @@ async function refresh(root: HTMLElement): Promise<void> {
       onCancelEditPrompt: () => {
         editingPromptId = null
         promptFormError = null
+        void refresh(root)
+      },
+      onOpenFeedback: () => {
+        if (!QA_ENABLED) return
+        feedbackState.error = null
+        feedbackState.sent = null
+        view = { mode: 'feedback' }
+        qaTrack('feedback_opened')
+        void refresh(root)
+      },
+      onFeedbackSubmit: async (input: FeedbackInput) => {
+        if (!QA_ENABLED || feedbackState.sending) return
+        feedbackState.draft = input
+        feedbackState.sending = true
+        feedbackState.error = null
+        await refresh(root)
+        try {
+          const token = await authAdapter.getValidToken()
+          if (!token) {
+            feedbackState.error = 'Please sign in again, then resend.'
+            return
+          }
+          // So the attached diagnostics include what just happened.
+          if (input.attachDiagnostics) await qaFlush(token)
+          const result = await sendFeedback(token, input)
+          if (result.ok) {
+            qaTrack('feedback_sent', { category: input.category, diagnostics: input.attachDiagnostics })
+            feedbackState.sent = { id: result.id, issueUrl: result.issueUrl }
+            feedbackState.draft = emptyDraft()
+            announce('Feedback sent. Thank you.')
+          } else {
+            feedbackState.error = result.error
+            announce(result.error)
+          }
+        } finally {
+          feedbackState.sending = false
+          if (view.mode === 'feedback') await refresh(root)
+        }
+      },
+      onFeedbackSendAnother: () => {
+        feedbackState.sent = null
+        feedbackState.error = null
+        void refresh(root)
+      },
+      onFeedbackBack: () => {
+        feedbackState.error = null
+        view = { mode: 'settings' }
         void refresh(root)
       },
       onSelectTeamTab: (tabId: string) => {
@@ -922,7 +1036,9 @@ async function refresh(root: HTMLElement): Promise<void> {
             }
             if (response.ok) {
               announce(`Inserted ${prompt.name}.`)
+              qaTrack('team_prompt_run', { type: prompt.type })
               registerPendingRun(runToken, () => {
+                qaTrack('team_prompt_sent', { type: prompt.type })
                 void authAdapter.getValidToken().then((token) => {
                   if (token) void reportPromptRun(token, prompt.id)
                 })
@@ -941,6 +1057,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
       },
       },
+      QA_ENABLED ? { buildLabel: QA_BUILD_LABEL, feedback: feedbackState } : null,
     )
     if (focusHandleId) {
       const handles = Array.from(root.querySelectorAll<HTMLElement>('.drag-handle'))
@@ -958,8 +1075,11 @@ async function start(): Promise<void> {
   // Lets captureTyping skip a form that was just submitted (see above).
   root.addEventListener('submit', (e) => { (e.target as HTMLFormElement).dataset.submitted = '1' }, true)
   session = await authAdapter.getCurrentSession()
+  qaTrack('panel_opened', { signedIn: session !== null })
   await refresh(root)
   if (session) void resolveOrgSession(root)
+  startQaFlushing()
+  void flushQa()
 }
 
 void start()

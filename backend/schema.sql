@@ -322,3 +322,54 @@ create table if not exists rate_limits (
 );
 
 create index if not exists rate_limits_window_start_idx on rate_limits (window_start);
+
+-- ===========================================================================
+-- Tester QA logging (usage events, defects, feedback). Written only by the
+-- tester build of the extension (the Chrome Web Store build has it off),
+-- read only through /api/qa-dashboard with the QA_DASHBOARD_KEY.
+--
+-- Not organisation data: testers on public email domains each sit in their
+-- own organisation, and QA spans all of them. So, like rate_limits, these
+-- tables have no RLS; the API is the only writer and keys every row by the
+-- caller's verified email. They never hold prompt text or anything from a
+-- Claude conversation (see backend/lib/qa.ts).
+--
+-- Migrating in place: just run this block. qa_events rows older than 90
+-- days are pruned by the API itself.
+-- ===========================================================================
+
+create table if not exists qa_events (
+  id bigint generated always as identity primary key,
+  email text not null,
+  kind text not null check (kind in ('event', 'error')),
+  name text not null,
+  source text not null check (source in ('sidepanel', 'content', 'background')),
+  occurred_at timestamptz not null,
+  received_at timestamptz not null default now(),
+  version text not null,
+  browser text not null,
+  props jsonb not null default '{}'::jsonb,
+  message text,
+  stack text,
+  -- Set for errors only: groups occurrences of the same defect.
+  fingerprint text
+);
+
+create index if not exists qa_events_received_at_idx on qa_events (received_at);
+create index if not exists qa_events_email_idx on qa_events (email, received_at);
+create index if not exists qa_events_fingerprint_idx on qa_events (fingerprint) where kind = 'error';
+
+create table if not exists qa_feedback (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  email text not null,
+  category text not null check (category in ('bug', 'suggestion', 'other')),
+  description text not null,
+  -- The tester's own recent events, when they ticked "attach".
+  diagnostics jsonb,
+  version text not null,
+  browser text not null,
+  github_issue_url text
+);
+
+create index if not exists qa_feedback_created_at_idx on qa_feedback (created_at);

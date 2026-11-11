@@ -1,3 +1,19 @@
+import { installQaCapture, qaReportFromContent } from '../shared/qa/logger'
+import type { QaReportMessage } from '../shared/messages'
+
+// Tester build: errors here, and those the content script forwards, are
+// queued and then sent by the side panel.
+installQaCapture('background')
+
+chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+  const m = message as Partial<QaReportMessage> | null
+  // Only our own content script on claude.ai, never another page.
+  if (m?.type !== 'QA_REPORT' || sender.id !== chrome.runtime.id || !sender.tab) return undefined
+  if (typeof m.name !== 'string' || typeof m.message !== 'string') return undefined
+  qaReportFromContent(m.name, m.message, typeof m.stack === 'string' ? m.stack : undefined)
+  return undefined
+})
+
 const SIDE_PANEL_PATH = 'src/sidepanel/index.html'
 
 function updateSidePanelForTab(tab: chrome.tabs.Tab): void {

@@ -1,0 +1,70 @@
+name: Tester build
+
+# Builds the tester version of the extension (QA logging on) and publishes
+# it as a zip on a GitHub Release called "Tester build (latest)", so
+# testers can download and load it without cloning or building anything.
+# Runs on every push to main, or by hand from the Actions tab.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tester-build
+  cancel-in-progress: true
+
+jobs:
+  tester-zip:
+    name: Build and publish tester zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm test
+      - run: pnpm run build
+
+      - name: Check this is a tester build with the pinned extension ID
+        run: |
+          grep -q '"key"' dist/manifest.json || { echo "dist/manifest.json has no key -- sign-in would break"; exit 1; }
+          grep -lq '/api/qa-events' dist/assets/*.js || { echo "QA logging missing from the tester build"; exit 1; }
+
+      - name: Zip dist/ inside a folder testers can keep
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          mkdir -p staging
+          cp -r dist staging/aire-extension-tester
+          (cd staging && zip -qr ../aire-extension-tester.zip aire-extension-tester)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aire-extension-tester-${{ env.SHORT_SHA }}
+          path: aire-extension-tester.zip
+          retention-days: 30
+
+      - name: Publish to the "tester-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES="Tester build from commit ${SHORT_SHA} ($(date -u '+%d %b %Y %H:%M UTC')).
+
+          To install: download aire-extension-tester.zip, unzip it somewhere you'll keep it, open chrome://extensions, turn on Developer mode, click Load unpacked and choose the aire-extension-tester folder.
+
+          To update: replace that folder with the new one, then click the reload icon on the extension's card.
+
+          This build sends error reports and feature usage (never prompt text or conversations) to the AIRE team while you're signed in. Report problems from Settings > Send feedback or report a problem."
+          gh release delete tester-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create tester-latest aire-extension-tester.zip \
+            --target "$GITHUB_SHA" \
+            --title "Tester build (latest)" \
+            --notes "$NOTES" \
+            --prerelease

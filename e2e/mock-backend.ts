@@ -28,6 +28,10 @@ export interface OrgScenario {
   /** Returned by POST /api/org-session { action: 'accept-invite' }; after
    * that, plain org-session calls return it too (the invite is accepted). */
   acceptedSession?: unknown
+  /** Filled in by the mock: every QA event the extension sent. */
+  qaEvents?: { name: string; kind: string; source: string; props?: Record<string, unknown> }[]
+  /** Filled in by the mock: every feedback body the extension sent. */
+  qaFeedback?: Record<string, unknown>[]
 }
 
 const FAR_FUTURE = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
@@ -65,6 +69,14 @@ export async function mockClerkAndBackend(page: Page, scenario: OrgScenario): Pr
         return route.fulfill({ json: { members: scenario.members ?? [] } })
       case '/api/org-analytics':
         return route.fulfill({ json: scenario.analytics ?? { topPrompts: [], perMember: [], dailyRuns: [] } })
+      case '/api/qa-events': {
+        const body = route.request().postDataJSON() as { events?: OrgScenario['qaEvents'] }
+        ;(scenario.qaEvents ??= []).push(...(body.events ?? []))
+        return route.fulfill({ status: 204 })
+      }
+      case '/api/qa-feedback':
+        ;(scenario.qaFeedback ??= []).push(route.request().postDataJSON() as Record<string, unknown>)
+        return route.fulfill({ status: 201, json: { id: 'fb-12345678-mock', issueUrl: null } })
       case '/api/org-usage':
         return route.fulfill({ json: { snapshots: scenario.usageSnapshots ?? [] } })
       default:

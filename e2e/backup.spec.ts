@@ -38,7 +38,7 @@ test('import adds buttons from a backup file without touching existing ones', as
   await page.locator('.settings-file-input').setInputFiles(join(FIXTURE_DIR, 'sample-backup.json'))
   await expect(page.locator('.settings-success')).toHaveText(/imported 2 tools/i)
 
-  await page.getByRole('button', { name: /back/i }).click()
+  await page.getByRole('button', { name: /^\W*back$/i }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Already here' })).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: 'Imported One' })).toBeVisible()
   const skillRow = page.getByRole('listitem').filter({ hasText: 'Imported Two' })
@@ -57,7 +57,7 @@ test('a corrupt import file leaves existing buttons untouched and shows an error
   await page.locator('.settings-file-input').setInputFiles(badFile)
   await expect(page.locator('.settings-error')).toHaveText(/valid json/i)
 
-  await page.getByRole('button', { name: /back/i }).click()
+  await page.getByRole('button', { name: /^\W*back$/i }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Survivor' })).toBeVisible()
   await expect(page.getByRole('listitem')).toHaveCount(1)
 })

@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>AIRE QA Dashboard</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --text: #1b1915; --muted: #5f5a51; --accent: #5b4fc4;
+    --border: #e3e0d7; --danger: #b3261e; --danger-bg: #fbeceb; --ok: #1e7a3c; --ok-bg: #e8f4ec;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16130f; --surface: #1f1b16; --text: #f2efe9; --muted: #bdb6ac; --accent: #a89ef0;
+      --border: #2b2620; --danger: #f2a49e; --danger-bg: #3a1d1a; --ok: #8fd6a5; --ok-bg: #1a3324;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 26px; line-height: 1.15; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 18px; margin: 32px 0 8px; display: flex; align-items: baseline; gap: 8px; }
+  h2 .count { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .eyebrow { font: 12px ui-monospace, "SF Mono", Consolas, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  a { color: var(--accent); }
+  form.key { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  input, select, button { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  input { flex: 1 1 220px; min-width: 0; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat .value { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 8px 0; }
+  .card-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+  .card-title { font-weight: 600; overflow-wrap: anywhere; }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+  .pill.bug { color: var(--danger); background: var(--danger-bg); border-color: transparent; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+  pre { margin: 8px 0 0; padding: 8px; background: var(--bg); border-radius: 6px; overflow-x: auto; font: 12px/1.45 ui-monospace, "SF Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .desc { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td.wrap { white-space: normal; overflow-wrap: anywhere; }
+  th { font-weight: 600; font-size: 13px; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 72px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+  .bar { flex: 1; display: flex; flex-direction: column-reverse; min-width: 4px; height: 100%; }
+  .bar span { display: block; width: 100%; border-radius: 2px 2px 0 0; }
+  .bar .ev { background: var(--accent); opacity: 0.75; }
+  .bar .er { background: var(--danger); }
+  .error { color: var(--danger); background: var(--danger-bg); padding: 10px 12px; border-radius: 8px; }
+  .empty { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">AIRE Extension</p>
+  <h1>Tester QA dashboard</h1>
+  <p class="muted small">Defects, feedback and feature usage from the tester build. Prompt text and Claude conversations are never collected.</p>
+
+  <form class="key" id="key-form">
+    <input id="key" type="password" autocomplete="current-password" placeholder="Dashboard key (QA_DASHBOARD_KEY)" aria-label="Dashboard key">
+    <button class="primary" type="submit">Open</button>
+  </form>
+
+  <div id="out"></div>
+</main>
+<script>
+(() => {
+  const STORE = 'aire-qa-key'
+  const out = document.getElementById('out')
+  const keyInput = document.getElementById('key')
+  const form = document.getElementById('key-form')
+  let days = 14
+
+  const read = () => { try { return localStorage.getItem(STORE) || '' } catch { return '' } }
+  const save = (k) => { try { k ? localStorage.setItem(STORE, k) : localStorage.removeItem(STORE) } catch {} }
+
+  // All rendering goes through el() with textContent -- tester-supplied
+  // text is never parsed as HTML.
+  function el(tag, attrs, ...children) {
+    const node = document.createElement(tag)
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === 'class') node.className = v
+      else if (k === 'text') node.textContent = v
+      else node.setAttribute(k, v)
+    }
+    for (const c of children) if (c != null) node.append(c instanceof Node ? c : String(c))
+    return node
+  }
+  const when = (iso) => {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    return d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+  const safeIssueUrl = (url) => typeof url === 'string' && url.startsWith('https://github.com/') ? url : null
+
+  function section(title, count, ...body) {
+    const h = el('h2', {}, title)
+    if (count != null) h.append(el('span', { class: 'count', text: String(count) }))
+    return [h, ...body]
+  }
+  function table(headers, rows) {
+    if (rows.length === 0) return el('p', { class: 'empty', text: 'Nothing yet.' })
+    const thead = el('tr', {}, ...headers.map((h) => el('th', { class: h.num ? 'num' : '', text: h.label })))
+    const body = rows.map((r) => el('tr', {}, ...r.map((cell, i) => el('td', { class: headers[i].num ? 'num' : headers[i].wrap ? 'wrap' : '', text: String(cell ?? '—') }))))
+    return el('div', { class: 'table-wrap' }, el('table', {}, el('thead', {}, thead), el('tbody', {}, ...body)))
+  }
+
+  function render(data) {
+    out.replaceChildren()
+    const errorsTotal = data.defects.reduce((n, d) => n + d.occurrences, 0)
+    const eventsTotal = data.usage.reduce((n, u) => n + u.count, 0)
+
+    const daySelect = el('select', { 'aria-label': 'Period' },
+      ...[1, 7, 14, 30, 90].map((d) => { const o = el('option', { value: String(d), text: d === 1 ? 'Last 24 hours' : `Last ${d} days` }); if (d === days) o.selected = true; return o }))
+    daySelect.addEventListener('change', () => { days = Number(daySelect.value); load() })
+    const refresh = el('button', { type: 'button', text: 'Refresh' }); refresh.addEventListener('click', load)
+    const forget = el('button', { type: 'button', text: 'Forget key' }); forget.addEventListener('click', () => { save(''); keyInput.value = ''; out.replaceChildren(); form.hidden = false })
+    out.append(el('div', { class: 'toolbar' }, daySelect, refresh, forget, el('span', { class: 'muted small', text: `Updated ${new Date().toLocaleTimeString()}` })))
+
+    const stat = (value, label) => el('div', { class: 'stat' }, el('div', { class: 'value', text: String(value) }), el('div', { class: 'label', text: label }))
+    out.append(el('div', { class: 'stats' },
+      stat(data.defects.length, 'distinct defects'),
+      stat(errorsTotal, 'error occurrences'),
+      stat(data.feedback.length, 'feedback reports'),
+      stat(data.testers.length, 'active testers'),
+      stat(eventsTotal, 'usage events'),
+      stat(data.notExercised.length, 'features not yet tried')))
+
+    if (data.daily.length > 0) {
+      const max = Math.max(1, ...data.daily.map((d) => d.events + d.errors))
+      const bars = el('div', { class: 'bars', role: 'img', 'aria-label': 'Daily events and errors' },
+        ...data.daily.map((d) => {
+          const bar = el('div', { class: 'bar', title: `${d.day}: ${d.events} events, ${d.errors} errors` })
+          bar.append(el('span', { class: 'ev', style: `height:${(d.events / max) * 100}%` }), el('span', { class: 'er', style: `height:${(d.errors / max) * 100}%` }))
+          return bar
+        }))
+      out.append(...section('Activity by day', null, bars, el('p', { class: 'muted small', text: 'Purple: usage events. Red: errors.' })))
+    }
+
+    const defectCards = data.defects.length === 0
+      ? [el('p', { class: 'empty', text: 'No defects reported in this period.' })]
+      : data.defects.map((d) => {
+          const card = el('div', { class: 'card' },
+            el('div', { class: 'card-head' },
+              el('span', { class: 'pill bug', text: d.name }),
+              el('span', { class: 'pill', text: d.source }),
+              el('span', { class: 'muted small', text: `${d.occurrences}× · ${d.testers} tester${d.testers === 1 ? '' : 's'} · last ${when(d.lastSeen)} · first ${when(d.firstSeen)} · v${d.latestVersion}` })),
+            el('div', { class: 'card-title desc', text: d.message || '(no message)' }))
+          if (d.stack) card.append(el('details', {}, el('summary', { text: 'Stack trace' }), el('pre', { text: d.stack })))
+          return card
+        })
+    out.append(...section('Defects', data.defects.length, ...defectCards))
+
+    const feedbackCards = data.feedback.length === 0
+      ? [el('p', { class: 'empty', text: 'No feedback in this period.' })]
+      : data.feedback.map((f) => {
+          const issue = safeIssueUrl(f.issueUrl)
+          const head = el('div', { class: 'card-head' },
+            el('span', { class: `pill ${f.category === 'bug' ? 'bug' : f.category === 'suggestion' ? 'ok' : ''}`, text: f.category }),
+            el('span', { class: 'muted small', text: `${f.email} · ${when(f.createdAt)} · v${f.version} · ${f.browser}` }))
+          if (issue) head.append(el('a', { href: issue, target: '_blank', rel: 'noopener', class: 'small', text: 'GitHub issue' }))
+          const card = el('div', { class: 'card' }, head, el('p', { class: 'desc', text: f.description }))
+          if (Array.isArray(f.diagnostics) && f.diagnostics.length > 0) {
+            const log = f.diagnostics.map((x) => `${x.at}  ${x.source}  ${x.kind === 'error' ? 'ERROR ' : ''}${x.name}${x.message ? ' -- ' + x.message : ''}`).join('\n')
+            card.append(el('details', {}, el('summary', { text: `Recent activity (${f.diagnostics.length} events)` }), el('pre', { text: log })))
+          }
+          return card
+        })
+    out.append(...section('Feedback', data.feedback.length, ...feedbackCards))
+
+    out.append(...section('Features not yet tried', data.notExercised.length,
+      data.notExercised.length === 0
+        ? el('p', { class: 'empty', text: 'Every tracked feature has been used at least once.' })
+        : el('div', { class: 'chips' }, ...data.notExercised.map((n) => el('span', { class: 'pill', text: n })))))
+
+    out.append(...section('Feature usage', data.usage.length,
+      table([{ label: 'Event' }, { label: 'Count', num: true }, { label: 'Testers', num: true }, { label: 'Last used' }],
+        data.usage.map((u) => [u.name, u.count, u.testers, when(u.lastSeen)]))))
+
+    out.append(...section('Testers', data.testers.length,
+      table([{ label: 'Tester', wrap: true }, { label: 'Events', num: true }, { label: 'Errors', num: true }, { label: 'Last seen' }, { label: 'Version' }, { label: 'Browser' }],
+        data.testers.map((t) => [t.email, t.events, t.errors, when(t.lastSeen), t.latestVersion, t.latestBrowser]))))
+  }
+
+  async function load() {
+    const key = read()
+    if (!key) return
+    form.hidden = true
+    if (!out.firstChild) out.append(el('p', { class: 'muted', text: 'Loading…' }))
+    let response
+    try {
+      response = await fetch(`/api/qa-dashboard?days=${days}`, { headers: { Authorization: `Bearer ${key}` }, cache: 'no-store' })
+    } catch {
+      out.replaceChildren(el('p', { class: 'error', text: 'Could not reach the server. Check your connection and try again.' }))
+      return
+    }
+    if (response.status === 401) {
+      save('')
+      form.hidden = false
+      out.replaceChildren(el('p', { class: 'error', text: 'That key was not accepted.' }))
+      return
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      out.replaceChildren(el('p', { class: 'error', text: `The server returned ${response.status}${body.error ? ': ' + body.error : ''}.` }))
+      return
+    }
+    render(await response.json())
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const k = keyInput.value.trim()
+    if (!k) return
+    save(k)
+    out.replaceChildren()
+    load()
+  })
+  load()
+})()
+</script>
+</body>
+</html>

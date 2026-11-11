@@ -17,6 +17,8 @@ import { renderOrgOnboarding } from './OrgOnboarding'
 import { renderManageOrganisation, type ManageOrgState } from './ManageOrganisation'
 import { renderTabStrip } from './TabStrip'
 import { renderTabManager } from './TabManager'
+import { renderFeedbackForm, type FeedbackState } from './FeedbackForm'
+import type { FeedbackInput } from '../shared/qa/feedback'
 import type { OrgPrompt, OrgPromptsResult } from '../shared/org-prompts'
 import type { OrgSessionState } from '../shared/org-session'
 import type { ProviderId } from '../shared/auth/providers'
@@ -28,6 +30,14 @@ export type View =
   | { mode: 'org-onboarding' }
   | { mode: 'manage-org' }
   | { mode: 'tabs' }
+  | { mode: 'feedback' }
+
+/** Tester-build state. Absent in the Chrome Web Store build, which then
+ * renders no feedback entry point at all. */
+export interface QaViewState {
+  buildLabel: string
+  feedback: FeedbackState
+}
 
 export interface TabViewState {
   tabs: ToolTab[]
@@ -101,6 +111,10 @@ export interface RenderContext {
   onDeletePrompt: (id: string) => void
   onEditPromptClick: (prompt: OrgPrompt) => void
   onCancelEditPrompt: () => void
+  onOpenFeedback: () => void
+  onFeedbackSubmit: (input: FeedbackInput) => void
+  onFeedbackSendAnother: () => void
+  onFeedbackBack: () => void
 }
 
 export function withMovedId(
@@ -138,6 +152,7 @@ export function renderApp(
   teamActiveTabId: string | null,
   manageOrgState: ManageOrgState,
   context: RenderContext,
+  qa: QaViewState | null = null,
 ): void {
   root.innerHTML = ''
 
@@ -180,9 +195,24 @@ export function renderApp(
     return
   }
 
+  if (view.mode === 'feedback' && qa) {
+    root.appendChild(
+      renderFeedbackForm({
+        ...qa.feedback,
+        signedIn: session !== null,
+        buildLabel: qa.buildLabel,
+        onSubmit: context.onFeedbackSubmit,
+        onSendAnother: context.onFeedbackSendAnother,
+        onBack: context.onFeedbackBack,
+      }),
+    )
+    return
+  }
+
   if (view.mode === 'settings') {
     root.appendChild(
       renderSettingsPanel({
+        qa: qa ? { buildLabel: qa.buildLabel, onOpenFeedback: context.onOpenFeedback } : null,
         onExport: context.onExport,
         onImport: context.onImport,
         onBack: context.onSettingsBack,

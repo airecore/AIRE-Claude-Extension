@@ -1,6 +1,7 @@
 import type { OrgSessionState } from '../shared/org-session'
 import { enabledProviders } from '../shared/auth/providers'
 import type { ProviderId } from '../shared/auth/providers'
+import { QA_ENABLED } from '../shared/qa/config'
 
 export interface SettingsPanelContext {
   onExport: () => void
@@ -20,6 +21,8 @@ export interface SettingsPanelContext {
   /** Withdraw from the current org (member), cancel a pending request, or decline an invite. */
   onLeaveOrg: () => void
   onAcceptInvite: () => void
+  /** Tester build only: the feedback entry point and build label. */
+  qa?: { buildLabel: string; onOpenFeedback: () => void } | null
 }
 
 export function inviteText(orgName: string, invitedBy: string | null): string {
@@ -172,6 +175,28 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
     importSection.appendChild(success)
   }
   container.appendChild(importSection)
+
+  if (QA_ENABLED && context.qa) {
+    const qaSection = document.createElement('div')
+    qaSection.className = 'settings-section qa-section'
+    const qaHeading = document.createElement('p')
+    qaHeading.className = 'settings-subheading'
+    qaHeading.textContent = 'Tester build'
+    qaSection.appendChild(qaHeading)
+    const feedbackButton = document.createElement('button')
+    feedbackButton.type = 'button'
+    feedbackButton.className = 'settings-action-button'
+    feedbackButton.textContent = 'Send feedback or report a problem'
+    feedbackButton.addEventListener('click', context.qa.onOpenFeedback)
+    qaSection.appendChild(feedbackButton)
+    const qaHint = document.createElement('p')
+    qaHint.className = 'settings-hint'
+    qaHint.textContent =
+      `This build reports errors and which features you use to the AIRE team while you're signed in, to help testing. ` +
+      `It never sends your prompts, buttons or Claude conversations. Build ${context.qa.buildLabel}.`
+    qaSection.appendChild(qaHint)
+    container.appendChild(qaSection)
+  }
 
   const backButton = document.createElement('button')
   backButton.type = 'button'

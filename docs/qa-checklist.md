@@ -100,3 +100,18 @@ open a fresh claude.ai tab.
 - [ ] Run a button with the claude.ai tab on a non-chat page → "reload the tab" message, no crash.
 - [ ] Go offline, open the panel → personal buttons work; org section falls back to cache, no crash.
 - [ ] Let the 14-day backend session token near expiry → next org action silently refreshes or prompts re-sign-in (no stuck spinner).
+
+## 11. Tester QA logging (tester build only)
+
+Needs the backend set up as in the README's
+[Tester QA logging](../README.md#tester-qa-logging) section.
+
+- [ ] Settings shows a **Tester build** section with the build label (e.g. `1.0.0+3f2a1b4`).
+- [ ] Signed out: **Send feedback or report a problem** opens the form, but **Send** is disabled with a sign-in notice.
+- [ ] Signed in: send a **Something broke** report with diagnostics ticked → "Thanks, your feedback was sent".
+- [ ] A GitHub issue appears in the repository, with the text in a code block, recent activity attached and no email address.
+- [ ] Open `https://claude-extension-xi.vercel.app/qa.html` on a phone, enter the dashboard key → the report is under **Feedback**, with your activity.
+- [ ] Use a few features (run a button, add a tab) and wait a minute → they show under **Feature usage** and drop out of **Features not yet tried**.
+- [ ] On a claude.ai page with no chat box (e.g. Settings), run a button → an `insert_input_not_found` defect appears under **Defects**.
+- [ ] The network tab shows `POST /api/qa-events` and never any prompt text in its body.
+- [ ] `pnpm run build:store` succeeds; the store zip has no **Tester build** section and sends nothing to `/api/qa-*`.

@@ -28,10 +28,37 @@ Web Store. What is still needed before submitting is listed in
 | Sign-in | Clerk development instance `innocent-lamb-6401.clerk.accounts.dev` (to be replaced by a production instance on the company domain before launch) |
 | Privacy policy | https://claude-extension-xi.vercel.app/privacy.html (source: `backend/public/privacy.html`) |
 | Store listing text and answers | [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md) |
+| Tester build download | GitHub Releases → **Tester build (latest)** (`tester-latest`), rebuilt on every push to `main` |
+| Tester QA dashboard | https://claude-extension-xi.vercel.app/qa.html (needs the `QA_DASHBOARD_KEY`); tester feedback also opens GitHub issues labelled `tester-feedback` |
 
 ---
 
 ## Install it for testing
+
+### Testers: download the ready-made build
+
+No Node, git or building needed.
+
+1. Download **`aire-extension-tester.zip`** from the repository's
+   Releases page → **Tester build (latest)**. It is rebuilt
+   automatically on every push to `main`.
+2. Unzip it somewhere you'll keep it (not Downloads, if that gets
+   cleared). You get an `aire-extension-tester` folder.
+3. Open `chrome://extensions`, turn on **Developer mode** (top-right),
+   click **Load unpacked** and choose the `aire-extension-tester` folder.
+4. Open a claude.ai tab and click the extension's toolbar icon.
+
+To update: replace the folder with the new one, click the reload icon on
+the extension's card, then reload the claude.ai tab. Don't delete or move
+the folder while the extension is installed, because Chrome loads it from
+there. Removing the extension from Chrome deletes your saved buttons;
+replacing the folder doesn't.
+
+Testers should sign in (Settings → **Sign in**) so their reports are
+sent; see [Tester QA logging](#tester-qa-logging). If the repository is
+private, testers need read access to it to download the release.
+
+### Developers: build from source
 
 You need **Node.js 22 LTS** (20 also works), **pnpm 9+** and **git**.
 
@@ -135,12 +162,26 @@ email code, enterprise SSO).
 4. Turn on the sign-in methods you want under **Social Connections** and
    **SSO Connections**. No code change is needed.
 
+### 3. Tester QA logging
+
+1. Re-run `backend/schema.sql` in the Neon SQL Editor (adds the
+   `qa_events` and `qa_feedback` tables).
+2. In Vercel → Settings → Environment Variables, add:
+
+   | Variable | Value |
+   |---|---|
+   | `QA_DASHBOARD_KEY` | output of `openssl rand -hex 24`; the password for `/qa.html` |
+   | `QA_GITHUB_TOKEN` | a GitHub fine-grained personal access token for this repository only, with **Issues: Read and write** (optional; without it feedback is saved but no issues are opened) |
+   | `QA_GITHUB_REPO` | `airecore/AIRE-Claude-Extension` (the default if unset) |
+
+3. Redeploy. Open `/qa.html` and enter the key.
+
 ### Secrets
 
 No secrets are stored in this repo. Client IDs and the public key in
 `manifest.config.ts` are public by design. `SESSION_JWT_SECRET`,
-`DATABASE_URL` and any Clerk secret key live only in Vercel environment
-variables. There is no `.env` file to create.
+`DATABASE_URL`, `QA_DASHBOARD_KEY`, `QA_GITHUB_TOKEN` and any Clerk
+secret key live only in Vercel environment variables. There is no `.env` file to create.
 
 ---
 
@@ -211,6 +252,55 @@ is verified.
 
 ---
 
+## Tester QA logging
+
+The tester build (every build except `pnpm run build:store`) reports
+back to the team so testers can try to break it before the store
+submission. The Chrome Web Store build leaves all of this out:
+`vite.config.ts` switches it off, and `build:store` fails if any QA code
+is left in the bundle.
+
+What it collects, only while the tester is **signed in**:
+
+- **Defects, automatically.** Every `console.error` in the side panel,
+  service worker and content script (the extension already logs every
+  caught failure that way), plus uncaught errors and unhandled promise
+  rejections. Each one includes the message, stack trace, build label and
+  browser version. The content script only reports its own errors, never
+  claude.ai's, and reports "couldn't find Claude's chat box" as a named
+  `insert_input_not_found` defect.
+- **Feature usage.** A fixed list of events (button run and sent, tab
+  created, import, sign-in, admin actions…) with a few plain props such as
+  the button type. The list is in `src/shared/qa/events.ts`.
+- **Feedback.** Settings → **Send feedback or report a problem**: a type,
+  a description and, if ticked, the tester's own last 40 events from the
+  past 24 hours.
+
+It never collects prompt text, button contents or anything from a Claude
+conversation, and console arguments that are objects are recorded only as
+`[object]`.
+
+Events are queued in `chrome.storage.local` (also while signed out or
+offline, up to 500), and the side panel sends them every minute in
+batches of 50. Rows older than 90 days are deleted automatically.
+
+Where to read it:
+
+- **`/qa.html`** on the backend (works on a phone). It shows defects
+  grouped by cause, a feedback inbox, feature usage, a list of
+  **features not yet tried**, testers with their build and browser, and
+  activity by day.
+- **GitHub issues.** Each piece of feedback opens an issue labelled
+  `tester-feedback` (plus `bug` or `enhancement`). The tester's text is
+  put in a code block, and their email is left out; it's on the
+  dashboard.
+
+Every build is labelled `<version>+<commit>` (for example
+`1.0.0+3f2a1b4`), shown in Settings, so every report says exactly which
+build it came from.
+
+---
+
 ## Development
 
 ```bash
@@ -239,7 +329,10 @@ pnpm.
   controller.
 - **`src/shared/`** — shared model and services: button storage,
   export/import (`backup.ts`), sign-in (`auth/`, OAuth with PKCE plus the
-  backend session token) and the `org-*` client modules.
+  backend session token) and the `org-*` client modules. `qa/` is the
+  tester QA logging (queue, error capture, event list, feedback client);
+  `src/content/qa-report.ts` is the content script's dependency-free
+  version, which forwards its defects to the service worker.
 - **`backend/`** — Vercel serverless API over Neon Postgres. `lib/`
   verifies tokens and resolves the caller's organisation and role; `api/`
   holds one file per route group. See `backend/README.md`.
@@ -268,6 +361,9 @@ pnpm.
   backend and the real claude.ai page. Run it before each release.
 - **CI** (`.github/workflows/ci.yml`) runs typecheck, all tests, the
   build and the e2e suite on every push and pull request to `main`.
+  `.github/workflows/tester-build.yml` then publishes the tester zip to
+  the **Tester build (latest)** release on every push to `main` (or run
+  it by hand from the Actions tab).
 
 ## Publishing to the Chrome Web Store
 
@@ -330,7 +426,7 @@ Store.
 4. Swap in the licensed font (if provided) and run
    `pnpm run build && pnpm run store-assets` to refresh the screenshots.
 5. Remove the test data from the database (the test organisation and
-   test accounts).
+   test accounts, and optionally `qa_events` / `qa_feedback`).
 6. `pnpm run build:store` and upload the zip to the developer dashboard
    as a **draft**. Copy the extension ID the store assigns, and add
    `https://<that-id>.chromiumapp.org/` as a redirect URI in the Clerk

@@ -2,6 +2,10 @@ import { insertPrompt, watchForSend } from './claude-adapter'
 import { initUsageWidget, refreshWidget } from './usage-widget'
 import { fetchUsage } from './usage-client'
 import type { GetUsageRequest, InsertPromptRequest, PromptSentMessage } from '../shared/messages'
+import { installContentQaCapture, qaContentDefect } from './qa-report'
+
+// Tester build: record this script's own errors (never claude.ai's).
+installContentQaCapture()
 
 console.log('[Claude Tools] content script loaded on', window.location.href)
 
@@ -13,6 +17,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   insertPrompt(prompt)
     .then((response) => {
       sendResponse(response)
+      // The extension's most likely break: claude.ai changing its chat box.
+      if (!response.ok) qaContentDefect(`insert_${response.error}`, response.message)
       void refreshWidget()
       if (response.ok && runToken) {
         watchForSend(() => {
