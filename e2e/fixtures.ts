@@ -1,4 +1,4 @@
-import { test as base, chromium, type BrowserContext, type Page } from '@playwright/test'
+import { test as base, chromium, expect, type BrowserContext, type Page } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -23,8 +23,33 @@ export const test = base.extend<{ sidepanel: Page }, { context: BrowserContext }
         headless: false,
         args: [`--disable-extensions-except=${EXTENSION_PATH}`, `--load-extension=${EXTENSION_PATH}`],
       })
+      // No test may leave an error in the console: the extension, the
+      // claude.ai page script and the service worker are all watched, and
+      // every console error or uncaught error fails the test. The one
+      // exception is the browser's own "Failed to load resource" line for
+      // a server error a test triggers on purpose.
+      const consoleErrors: string[] = []
+      const allowed = /Failed to load resource: the server responded with a status of [45]\d\d/
+      const record = (where: string, text: string) => {
+        if (!allowed.test(text)) consoleErrors.push(`${where}: ${text.replace(/\s+/g, ' ').slice(0, 300)}`)
+      }
+      const watch = (p: import('@playwright/test').Page) => {
+        p.on('console', (m) => {
+          if (m.type() === 'error') record(p.url() || 'page', m.text())
+        })
+        p.on('pageerror', (e) => record(`uncaught on ${p.url() || 'page'}`, e.message))
+      }
+      context.pages().forEach(watch)
+      context.on('page', watch)
+      const watchWorker = (w: import('@playwright/test').Worker) =>
+        w.on('console', (m) => {
+          if (m.type() === 'error') record('service worker', m.text())
+        })
+      context.serviceWorkers().forEach(watchWorker)
+      context.on('serviceworker', watchWorker)
       await use(context)
       await context.close()
+      expect(consoleErrors, 'console errors during this test').toEqual([])
       rmSync(userDataDir, { recursive: true, force: true })
     },
     { scope: 'test' },

@@ -34,6 +34,21 @@ const RETRY_LIMIT = 20
 // browser, so they're never mistaken for a real person's testing.
 const AUTOMATED_TESTER = 'automated-tour'
 
+// POST /api/qa-dashboard  { action: 'resolve-defect', fingerprint }  (same key)
+// "Mark fixed": removes that defect's error reports. If the bug happens
+// again it comes straight back as a new defect.
+async function resolveDefect(body: unknown, res: VercelResponse): Promise<void> {
+  const fingerprint = (body as { fingerprint?: unknown } | undefined)?.fingerprint
+  if (typeof fingerprint !== 'string' || !/^[0-9a-f]{16}$/.test(fingerprint)) {
+    res.status(400).json({ error: 'fingerprint must be a defect id from this dashboard' })
+    return
+  }
+  const deleted = (await sql`
+    DELETE FROM qa_events WHERE kind = 'error' AND fingerprint = ${fingerprint} RETURNING id
+  `) as unknown[]
+  res.status(200).json({ resolved: deleted.length })
+}
+
 async function importEvents(body: unknown, res: VercelResponse): Promise<void> {
   const batch = parseQaEventBatch(body)
   if (!batch) {
@@ -106,12 +121,13 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 
   if (req.method === 'POST') {
     const action = (req.body as { action?: unknown } | undefined)?.action
-    if (action !== 'retry-issues' && action !== 'import-events') {
+    if (action !== 'retry-issues' && action !== 'import-events' && action !== 'resolve-defect') {
       res.status(400).json({ error: 'unknown action' })
       return
     }
     try {
       if (action === 'retry-issues') await retryIssues(res)
+      else if (action === 'resolve-defect') await resolveDefect(req.body, res)
       else await importEvents(req.body, res)
     } catch (error) {
       console.error(`[qa-dashboard] ${action} failed`, error)

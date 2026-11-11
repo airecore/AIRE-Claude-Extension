@@ -18,7 +18,7 @@ import {
 import type { Button, ToolTab } from '../shared/types'
 import type { LibraryItem } from '../shared/library'
 import type { InsertPromptRequest, GetUsageRequest, GetUsageResponse } from '../shared/messages'
-import { parseBackup, serializeBackup } from '../shared/backup'
+import { BackupFormatError, parseBackup, serializeBackup } from '../shared/backup'
 import { getTabPrefs, setActiveTab, setDefaultTab, resolveActiveTabId } from '../shared/tab-prefs'
 import {
   getButtonUsage,
@@ -716,7 +716,10 @@ async function refresh(root: HTMLElement): Promise<void> {
           announce(`Imported ${parsed.tools.length} prompt${parsed.tools.length === 1 ? '' : 's'}.`)
           await refresh(root)
         } catch (error) {
-          console.error('[Claude Tools] failed to import tools', error)
+          // A bad file is the person's to fix (they see why); only an
+          // unexpected failure is a defect.
+          if (error instanceof BackupFormatError) console.warn('[Claude Tools] import file rejected:', error.message)
+          else console.error('[Claude Tools] failed to import tools', error)
           settingsState.error =
             error instanceof Error ? error.message : 'Something went wrong importing that file.'
           announce(settingsState.error)

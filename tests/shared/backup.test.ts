@@ -157,3 +157,11 @@ describe('examples/showcase.json', () => {
     for (const tool of result.tools) expect(names.has(tool.tab.toLowerCase())).toBe(true)
   })
 })
+
+describe('BackupFormatError', () => {
+  it('marks problems with the chosen file, so they are not logged as defects', async () => {
+    const { BackupFormatError } = await import('../../src/shared/backup')
+    expect(() => parseBackup('not json')).toThrow(BackupFormatError)
+    expect(() => parseBackup('{"version": 99, "tools": []}')).toThrow(BackupFormatError)
+  })
+})

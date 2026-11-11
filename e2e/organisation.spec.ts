@@ -197,3 +197,31 @@ test('a personal account can choose to create an organisation and becomes its ad
   await expect(page.getByRole('button', { name: 'Manage Organisation' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Create an organisation' })).toHaveCount(0)
 })
+
+test('the shared prompt form keeps everything typed when the panel redraws in the background', async ({ context }) => {
+  const page = await openMockedSidepanel(context, {
+    email: 'director@acme.test',
+    orgSession: { state: 'active', org: { id: 'org-1', name: 'Acme Inc' }, role: 'director' },
+    orgPrompts: { org: { name: 'Acme Inc' }, tabs: [{ id: 'tab-1', name: 'General', emoji: null, sort_order: 0 }], prompts: [] },
+    members: [{ email: 'director@acme.test', role: 'director', status: 'active', createdAt: new Date().toISOString() }],
+  })
+  // Analytics land late, redrawing the whole panel while the form is half filled.
+  await page.route('**/api/org-analytics', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500))
+    await route.fulfill({ json: { topPrompts: [], perMember: [], dailyRuns: [] } })
+  })
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Manage Organisation' }).click()
+
+  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add prompt', exact: true }) })
+  await form.getByLabel('Name').fill('Weekly summary')
+  await form.getByLabel('Prompt text').click()
+  await expect(page.getByText('Prompt runs')).toBeVisible({ timeout: 5000 }) // the redraw happened
+  await expect(form.getByLabel('Name')).toHaveValue('Weekly summary')
+
+  const created = page.waitForRequest((r) => r.url().endsWith('/api/org-prompts') && r.method() === 'POST')
+  await form.getByLabel('Prompt text').fill('Summarise this week.')
+  await form.getByRole('button', { name: 'Add prompt', exact: true }).click()
+  expect((await created).postDataJSON()).toMatchObject({ name: 'Weekly summary', promptText: 'Summarise this week.' })
+})

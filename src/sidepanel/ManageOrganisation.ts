@@ -363,6 +363,23 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   frag.appendChild(promptsList)
 
   const editingPrompt = state.prompts.find((p) => p.id === state.editingPromptId) ?? null
+  // What's typed so far survives the panel redrawing itself when background
+  // work lands (saving a tab, loading analytics). Without this, every field
+  // except the focused one was wiped mid-entry.
+  const draftKey = state.editingPromptId ?? 'new'
+  const draft =
+    promptDraft?.key === draftKey
+      ? promptDraft
+      : {
+          key: draftKey,
+          name: editingPrompt?.name ?? '',
+          text: editingPrompt?.promptText ?? '',
+          type: (editingPrompt?.type ?? 'prompt') as 'prompt' | 'skill',
+          tabId: editingPrompt?.tabId ?? state.orgTabs[0]?.id ?? '',
+        }
+  const saveDraft = (): void => {
+    promptDraft = draft
+  }
 
   const form = document.createElement('form')
   form.className = 'edit-form'
@@ -375,7 +392,11 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   promptRadio.type = 'radio'
   promptRadio.name = 'org-prompt-type'
   promptRadio.value = 'prompt'
-  promptRadio.checked = (editingPrompt?.type ?? 'prompt') === 'prompt'
+  promptRadio.checked = draft.type === 'prompt'
+  promptRadio.addEventListener('change', () => {
+    if (promptRadio.checked) draft.type = 'prompt'
+    saveDraft()
+  })
   promptOpt.appendChild(promptRadio)
   promptOpt.appendChild(document.createTextNode('Prompt'))
   typeToggle.appendChild(promptOpt)
@@ -385,13 +406,17 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   skillRadio.type = 'radio'
   skillRadio.name = 'org-prompt-type'
   skillRadio.value = 'skill'
-  skillRadio.checked = editingPrompt?.type === 'skill'
+  skillRadio.checked = draft.type === 'skill'
+  skillRadio.addEventListener('change', () => {
+    if (skillRadio.checked) draft.type = 'skill'
+    saveDraft()
+  })
   skillOpt.appendChild(skillRadio)
   skillOpt.appendChild(document.createTextNode('Skill'))
   typeToggle.appendChild(skillOpt)
   form.appendChild(typeToggle)
 
-  let selectedTabId = editingPrompt?.tabId ?? state.orgTabs[0]?.id ?? ''
+  let selectedTabId = state.orgTabs.some((t) => t.id === draft.tabId) ? draft.tabId : (state.orgTabs[0]?.id ?? '')
   if (state.orgTabs.length > 0) {
     const tabLabel = document.createElement('label')
     tabLabel.textContent = 'Tab'
@@ -405,6 +430,8 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
         })),
         onChange: (value) => {
           selectedTabId = value
+          draft.tabId = value
+          saveDraft()
         },
       }),
     )
@@ -416,7 +443,11 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   const nameInput = document.createElement('input')
   nameInput.type = 'text'
   nameInput.required = true
-  nameInput.value = editingPrompt?.name ?? ''
+  nameInput.value = draft.name
+  nameInput.addEventListener('input', () => {
+    draft.name = nameInput.value
+    saveDraft()
+  })
   nameLabel.appendChild(nameInput)
   form.appendChild(nameLabel)
 
@@ -425,7 +456,11 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
   const textInput = document.createElement('textarea')
   textInput.required = true
   textInput.rows = 6
-  textInput.value = editingPrompt?.promptText ?? ''
+  textInput.value = draft.text
+  textInput.addEventListener('input', () => {
+    draft.text = textInput.value
+    saveDraft()
+  })
   textLabel.appendChild(textInput)
   form.appendChild(textLabel)
 
@@ -435,7 +470,10 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
     const cancel = document.createElement('button')
     cancel.type = 'button'
     cancel.textContent = 'Cancel'
-    cancel.addEventListener('click', context.onCancelEditPrompt)
+    cancel.addEventListener('click', () => {
+      promptDraft = null
+      context.onCancelEditPrompt()
+    })
     actions.appendChild(cancel)
   }
   const submit = document.createElement('button')
@@ -449,6 +487,7 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
     const name = nameInput.value.trim()
     const promptText = textInput.value.trim()
     if (!name || !promptText) return
+    promptDraft = null
     const type: 'prompt' | 'skill' = skillRadio.checked ? 'skill' : 'prompt'
     const tabId = selectedTabId || state.orgTabs[0]?.id || ''
     if (state.editingPromptId) {
@@ -594,6 +633,10 @@ function renderUsageSnapshots(state: ManageOrgState): DocumentFragment {
   frag.appendChild(list)
   return frag
 }
+
+/** The shared-prompt form's unsaved input, keyed by the prompt being
+ * edited ('new' for the add form). Cleared on submit and on Cancel. */
+let promptDraft: { key: string; name: string; text: string; type: 'prompt' | 'skill'; tabId: string } | null = null
 
 export function renderManageOrganisation(
   state: ManageOrgState,

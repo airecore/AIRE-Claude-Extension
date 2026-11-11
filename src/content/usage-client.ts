@@ -4,8 +4,14 @@ import type { UsageSnapshot } from '../shared/usage'
 export type FetchUsageResult = { ok: true; usage: UsageSnapshot } | { ok: false }
 
 function readCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
+  // Some pages (sandboxed or opaque-origin frames) refuse cookie access
+  // outright; treat that as "no cookie" rather than an uncaught error.
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    return null
+  }
 }
 
 export async function fetchUsage(): Promise<FetchUsageResult> {

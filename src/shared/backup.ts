@@ -50,14 +50,14 @@ export function serializeBackup(tabs: ToolTab[], buttons: Button[]): string {
 
 function parseToolEntry(item: unknown, index: number, defaultTab: string): ImportedTool {
   if (typeof item !== 'object' || item === null) {
-    throw new Error(`Entry ${index + 1} isn't a valid object.`)
+    throw new BackupFormatError(`Entry ${index + 1} isn't a valid object.`)
   }
   const { name, prompt, type, tab } = item as Record<string, unknown>
   if (typeof name !== 'string' || name.trim().length === 0) {
-    throw new Error(`Entry ${index + 1} is missing a name.`)
+    throw new BackupFormatError(`Entry ${index + 1} is missing a name.`)
   }
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
-    throw new Error(`Entry ${index + 1} is missing a prompt.`)
+    throw new BackupFormatError(`Entry ${index + 1} is missing a prompt.`)
   }
   return {
     tab: typeof tab === 'string' && tab.trim().length > 0 ? tab : defaultTab,
@@ -75,12 +75,21 @@ function parseToolEntry(item: unknown, index: number, defaultTab: string): Impor
  *   prompt, type }] }`.
  * Throws a descriptive error and touches nothing on malformed input.
  */
+/** A problem with the file the person chose (not JSON, wrong shape). Shown
+ * to them as-is; it's their file, not a defect in the extension. */
+export class BackupFormatError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'BackupFormatError'
+  }
+}
+
 export function parseBackup(json: string): ParsedBackup {
   let parsed: unknown
   try {
     parsed = JSON.parse(json)
   } catch {
-    throw new Error("That file isn't valid JSON.")
+    throw new BackupFormatError("That file isn't valid JSON.")
   }
 
   // v1: bare array of tools.
@@ -90,15 +99,15 @@ export function parseBackup(json: string): ParsedBackup {
   }
 
   if (typeof parsed !== 'object' || parsed === null) {
-    throw new Error('Expected a list of prompts or a backup file.')
+    throw new BackupFormatError('Expected a list of prompts or a backup file.')
   }
   const record = parsed as Record<string, unknown>
 
   if (record.version !== BACKUP_VERSION) {
-    throw new Error(`Unsupported backup version. Expected ${BACKUP_VERSION}.`)
+    throw new BackupFormatError(`Unsupported backup version. Expected ${BACKUP_VERSION}.`)
   }
   if (!Array.isArray(record.tools)) {
-    throw new Error('Backup is missing its "tools" array.')
+    throw new BackupFormatError('Backup is missing its "tools" array.')
   }
 
   const tabs: ImportedTab[] = Array.isArray(record.tabs)

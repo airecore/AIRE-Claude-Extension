@@ -35,7 +35,9 @@ function start(): void {
 
   console.log('[Claude Tools] content script loaded on', window.location.href)
 
-  void initUsageWidget()
+  initUsageWidget().catch((error) => {
+    console.warn('[Claude Tools] usage box could not start', error)
+  })
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || (message as InsertPromptRequest).type !== 'INSERT_PROMPT') return undefined

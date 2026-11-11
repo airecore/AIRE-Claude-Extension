@@ -244,3 +244,29 @@ describe('POST /api/qa-dashboard import-events', async () => {
     expect(insert).toContain('Chrome 131 (automated tour)')
   })
 })
+
+describe('POST /api/qa-dashboard resolve-defect', async () => {
+  const handler = (await import('../api/qa-dashboard.js')).default
+
+  it('needs the dashboard key and a real defect id', async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    const noKey = makeRes()
+    await handler(makeReq('POST', { action: 'resolve-defect', fingerprint: '0123456789abcdef' }, { authorization: 'Bearer x' }), noKey)
+    expect(noKey.statusCode).toBe(401)
+    const bad = makeRes()
+    await handler(makeReq('POST', { action: 'resolve-defect', fingerprint: "x' OR 1=1" }, { authorization: 'Bearer right-key' }), bad)
+    expect(bad.statusCode).toBe(400)
+    expect(queries.some((q) => q.includes('DELETE FROM qa_events'))).toBe(false)
+  })
+
+  it("removes only that defect's error reports", async () => {
+    process.env.QA_DASHBOARD_KEY = 'right-key'
+    nextRows.events = [{ id: 1 }, { id: 2 }]
+    const res = makeRes()
+    await handler(makeReq('POST', { action: 'resolve-defect', fingerprint: '0123456789abcdef' }, { authorization: 'Bearer right-key' }), res)
+    expect(res.body).toEqual({ resolved: 2 })
+    const del = queries.find((q) => q.includes('DELETE FROM qa_events'))!
+    expect(del).toContain("kind = 'error'")
+    expect(del).toContain('"0123456789abcdef"')
+  })
+})
