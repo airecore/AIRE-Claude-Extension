@@ -38,10 +38,10 @@ const PRODUCT_NAME = 'AI Ready Tools Extension'
 // need a separate help page.
 const HELP_STEPS = [
   'Open a chat on claude.ai, then click the extension icon in the toolbar to open this panel.',
-  "Click a tool to type its prompt into Claude's chat box. Check it, then press Send. The extension never sends a message for you.",
-  'Click Add tool to choose from the AIRE library or to write your own.',
+  "Click a prompt to type it into Claude's chat box. Check it, then press Send. The extension never sends a message for you.",
+  'Click Add prompt to choose from the AIRE library or to write your own.',
   'Click + New to add a tab. Double-click a tab to rename it. Use the ⋯ menu to move or delete it.',
-  'Use Export tools to keep a backup of your tools.',
+  'Use Export prompts to keep a backup of your prompts.',
 ]
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -108,7 +108,7 @@ function renderAccount(context: SettingsPanelContext): HTMLElement {
       el(
         'p',
         'settings-hint',
-        "Sign in to get your organisation's shared tools. Your own tools work without an account.",
+        "Sign in to get your organisation's shared prompts. Your own prompts work without an account.",
       ),
     )
     const actions = el('div', 'settings-actions')
@@ -177,9 +177,9 @@ function renderAccount(context: SettingsPanelContext): HTMLElement {
 }
 
 function renderBackup(context: SettingsPanelContext): HTMLElement {
-  const { section, body } = card('settings-backup', 'Your tools')
+  const { section, body } = card('settings-backup', 'Your prompts')
 
-  body.appendChild(row('Back up', 'Downloads all your tools as a .json file.', actionButton('Export tools', context.onExport)))
+  body.appendChild(row('Back up', 'Downloads all your prompts as a .json file.', actionButton('Export prompts', context.onExport)))
 
   const fileInput = document.createElement('input')
   fileInput.type = 'file'
@@ -192,8 +192,8 @@ function renderBackup(context: SettingsPanelContext): HTMLElement {
   })
   const importRow = row(
     'Restore or share',
-    'Adds tools from a .json file to your list.',
-    actionButton('Import tools', () => fileInput.click()),
+    'Adds prompts from a .json file to your list.',
+    actionButton('Import prompts', () => fileInput.click()),
   )
   importRow.appendChild(fileInput)
   body.appendChild(importRow)
@@ -204,7 +204,7 @@ function renderBackup(context: SettingsPanelContext): HTMLElement {
     body.appendChild(error)
   } else if (context.importSuccessCount !== null) {
     const n = context.importSuccessCount
-    const success = el('p', 'settings-success', `Imported ${n} tool${n === 1 ? '' : 's'}.`)
+    const success = el('p', 'settings-success', `Imported ${n} prompt${n === 1 ? '' : 's'}.`)
     success.setAttribute('role', 'status')
     body.appendChild(success)
   }
@@ -222,7 +222,7 @@ function renderTesterCard(qa: { buildLabel: string; onOpenFeedback: () => void }
       'p',
       'settings-hint',
       `This build reports errors and which features you use to the AIRE team while you're signed in, to help testing. ` +
-        `It never sends your prompts, buttons or Claude conversations. Build ${qa.buildLabel}.`,
+        `It never sends your prompts or Claude conversations. Build ${qa.buildLabel}.`,
     ),
   )
   return section
@@ -246,7 +246,7 @@ function renderHelp(): HTMLElement {
   guide.append(summary, steps)
   body.appendChild(guide)
 
-  body.appendChild(linkRow('Contact AIRE', 'Questions, feedback or ideas for new tools.', LINKS.contact))
+  body.appendChild(linkRow('Contact AIRE', 'Questions, feedback or ideas for new prompts.', LINKS.contact))
   body.appendChild(linkRow('AI training', 'Claude, ChatGPT, Copilot and Gemini courses.', LINKS.training))
   body.appendChild(linkRow('Privacy policy', 'What the extension stores and why.', LINKS.privacy))
   return section
@@ -262,7 +262,7 @@ function renderAbout(): HTMLElement {
     el(
       'p',
       'settings-hint',
-      'Saved prompts and skills for claude.ai, one click away. Your tools are stored in this browser.',
+      'Saved prompts and skills for claude.ai, one click away. Your prompts are stored in this browser.',
     ),
   )
   const by = el('p', 'settings-hint')
@@ -281,7 +281,7 @@ export function renderSettingsPanel(context: SettingsPanelContext): HTMLElement 
 
   const backButton = el('button', 'settings-back-button')
   backButton.type = 'button'
-  backButton.innerHTML = '<span class="gi" aria-hidden="true">←</span> Back to tools'
+  backButton.innerHTML = '<span class="gi" aria-hidden="true">←</span> Back to prompts'
   backButton.addEventListener('click', context.onBack)
   container.appendChild(backButton)
 

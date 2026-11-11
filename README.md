@@ -32,11 +32,11 @@ the team automatically.
 
 ### 3. Try everything
 
-- **+ Add tool** to make a button, then click it to put the prompt into
+- **+ Add prompt** to make a button, then click it to put the prompt into
   Claude's chat box.
 - Edit, delete and drag buttons to reorder them; make tabs; try
   **Sort by most used**.
-- Settings → **Export tools** and **Import tools**.
+- Settings → **Export prompts** and **Import prompts**.
 - If you're in an organisation, try the shared Team prompts too.
 
 Try to break it: odd inputs, lots of buttons, quick clicking, reloading
@@ -244,7 +244,7 @@ secret key live only in Vercel environment variables. There is no `.env` file to
 
 ## Using it
 
-- **Add a button:** sidebar → **+ Add tool** → choose **Prompt** or
+- **Add a button:** sidebar → **+ Add prompt** → choose **Prompt** or
   **Skill** → enter a name and the text to insert. For a skill, the text
   is the slash command itself (e.g. `/doc-summary`); claude.ai's own
   autocomplete takes over after insertion.
@@ -253,14 +253,14 @@ secret key live only in Vercel environment variables. There is no `.env` file to
 - **Reorder:** drag a row by its handle, or focus it and use Arrow
   Up/Down.
 - **Tabs:** sort buttons into tabs (Writing, Code, …).
-- **Export / import:** Settings → **Export tools** saves all your buttons
-  to a JSON file; **Import tools** adds buttons from a JSON file to your
+- **Export / import:** Settings → **Export prompts** saves all your buttons
+  to a JSON file; **Import prompts** adds buttons from a JSON file to your
   list.
 
 ### Demo data
 
 `examples/showcase.json` — 20 sample buttons across 5 tabs. Settings →
-Import tools → pick the file.
+Import prompts → pick the file.
 
 `examples/org-seed.sql` — fills Manage Organisation (shared tabs and
 prompts, a sample roster, usage and run counts) for an existing

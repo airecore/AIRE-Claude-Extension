@@ -4,12 +4,12 @@ import { test, expect } from './fixtures'
 // the parts that need no sign-in, no backend, and no claude.ai tab.
 
 test('starts empty with the add button visible', async ({ sidepanel: page }) => {
-  await expect(page.getByText(/no tools in this tab yet/i)).toBeVisible()
-  await expect(page.getByRole('button', { name: /add tool/i })).toBeVisible()
+  await expect(page.getByText(/no prompts in this tab yet/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /add prompt/i })).toBeVisible()
 })
 
 test('add, edit, and delete a button', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('My Test Prompt')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('Summarize the above in three bullets.')
@@ -31,11 +31,11 @@ test('add, edit, and delete a button', async ({ sidepanel: page }) => {
   await renamed.getByRole('button', { name: 'More actions for My Renamed Prompt' }).click()
   await renamed.getByRole('menuitem', { name: 'Delete' }).click()
   await expect(page.getByRole('listitem')).toHaveCount(0)
-  await expect(page.getByText(/no tools in this tab yet/i)).toBeVisible()
+  await expect(page.getByText(/no prompts in this tab yet/i)).toBeVisible()
 })
 
 test('a skill button shows the / badge and inserts as typed', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByRole('radio', { name: 'Skill' }).check()
   await page.getByLabel('Name').fill('Doc summary')
@@ -49,7 +49,7 @@ test('a skill button shows the / badge and inserts as typed', async ({ sidepanel
 
 test('reorders buttons with the keyboard (Arrow Down on the drag handle)', async ({ sidepanel: page }) => {
   for (const name of ['First', 'Second']) {
-    await page.getByRole('button', { name: /add tool/i }).click()
+    await page.getByRole('button', { name: /add prompt/i }).click()
     await page.getByRole('button', { name: /write your own/i }).click()
     await page.getByLabel('Name').fill(name)
     await page.getByRole('textbox', { name: 'Prompt' }).fill('placeholder text')
@@ -66,7 +66,7 @@ test('reorders buttons with the keyboard (Arrow Down on the drag handle)', async
 })
 
 test('creating a tab and moving a button to it filters the list by tab', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('General item')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('placeholder text')
@@ -83,7 +83,7 @@ test('creating a tab and moving a button to it filters the list by tab', async (
   // Both tabs now show as chips in the main strip; the new one is active
   // (onAddTab switches to it), so the tab we just made should be empty.
   await expect(page.getByRole('tab', { name: 'Research' })).toBeVisible()
-  await expect(page.getByText(/no tools in this tab yet/i)).toBeVisible()
+  await expect(page.getByText(/no prompts in this tab yet/i)).toBeVisible()
 
   // Move "General item" into Research via its edit form's tab picker.
   await page.getByRole('tab', { name: 'General' }).click()
@@ -135,8 +135,8 @@ test('tab menu moves a tab and deletes it', async ({ sidepanel: page }) => {
 })
 
 test('adds tools from the library into the active tab', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
-  await expect(page.getByRole('heading', { name: /add tools to general/i })).toBeVisible()
+  await page.getByRole('button', { name: /add prompt/i }).click()
+  await expect(page.getByRole('heading', { name: /add prompts to general/i })).toBeVisible()
 
   await page.getByRole('button', { name: 'Add Rewrite in plain English' }).click()
   await expect(page.getByRole('button', { name: 'Rewrite in plain English is added' })).toBeVisible()

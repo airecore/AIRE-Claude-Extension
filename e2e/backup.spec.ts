@@ -9,7 +9,7 @@ const FIXTURE_DIR = fileURLToPath(new URL('./fixtures-data', import.meta.url))
 // producing a real browser download, and Import restoring from a file.
 
 test('export downloads a valid v2 backup of the current buttons', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('Exported Prompt')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('some text')
@@ -17,7 +17,7 @@ test('export downloads a valid v2 backup of the current buttons', async ({ sidep
 
   await page.getByRole('button', { name: 'Settings' }).click()
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export tools' }).click()
+  await page.getByRole('button', { name: 'Export prompts' }).click()
   const download = await downloadPromise
 
   const filePath = await download.path()
@@ -30,7 +30,7 @@ test('export downloads a valid v2 backup of the current buttons', async ({ sidep
 })
 
 test('import adds buttons from a backup file without touching existing ones', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('Already here')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('pre-existing')
@@ -38,9 +38,9 @@ test('import adds buttons from a backup file without touching existing ones', as
 
   await page.getByRole('button', { name: 'Settings' }).click()
   await page.locator('.settings-file-input').setInputFiles(join(FIXTURE_DIR, 'sample-backup.json'))
-  await expect(page.locator('.settings-success')).toHaveText(/imported 2 tools/i)
+  await expect(page.locator('.settings-success')).toHaveText(/imported 2 prompts/i)
 
-  await page.getByRole('button', { name: 'Back to tools' }).click()
+  await page.getByRole('button', { name: 'Back to prompts' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Already here' })).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: 'Imported One' })).toBeVisible()
   const skillRow = page.getByRole('listitem').filter({ hasText: 'Imported Two' })
@@ -49,7 +49,7 @@ test('import adds buttons from a backup file without touching existing ones', as
 })
 
 test('a corrupt import file leaves existing buttons untouched and shows an error', async ({ sidepanel: page }) => {
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByLabel('Name').fill('Survivor')
   await page.getByRole('textbox', { name: 'Prompt' }).fill('should not be lost')
@@ -60,7 +60,7 @@ test('a corrupt import file leaves existing buttons untouched and shows an error
   await page.locator('.settings-file-input').setInputFiles(badFile)
   await expect(page.locator('.settings-error')).toHaveText(/valid json/i)
 
-  await page.getByRole('button', { name: 'Back to tools' }).click()
+  await page.getByRole('button', { name: 'Back to prompts' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Survivor' })).toBeVisible()
   await expect(page.getByRole('listitem')).toHaveCount(1)
 })

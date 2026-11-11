@@ -118,7 +118,7 @@ describe('parseBackup - errors (nothing is written on bad input)', () => {
   })
 
   it('throws for a non-array, non-object top level', () => {
-    expect(() => parseBackup('"a string"')).toThrow('Expected a tools array or a backup object.')
+    expect(() => parseBackup('"a string"')).toThrow('Expected a list of prompts or a backup file.')
   })
 
   it('throws for an object without a recognized version', () => {
@@ -130,20 +130,20 @@ describe('parseBackup - errors (nothing is written on bad input)', () => {
   })
 
   it('throws when an entry is not an object', () => {
-    expect(() => parseBackup('["not an object"]')).toThrow("Tool 1 isn't a valid object.")
+    expect(() => parseBackup('["not an object"]')).toThrow("Entry 1 isn't a valid object.")
   })
 
   it('throws when an entry is missing a name', () => {
-    expect(() => parseBackup(JSON.stringify([{ prompt: 'x' }]))).toThrow('Tool 1 is missing a name.')
+    expect(() => parseBackup(JSON.stringify([{ prompt: 'x' }]))).toThrow('Entry 1 is missing a name.')
   })
 
   it('throws when an entry is missing a prompt', () => {
-    expect(() => parseBackup(JSON.stringify([{ name: 'X' }]))).toThrow('Tool 1 is missing a prompt.')
+    expect(() => parseBackup(JSON.stringify([{ name: 'X' }]))).toThrow('Entry 1 is missing a prompt.')
   })
 
   it('reports the correct 1-based index for a later bad entry', () => {
     const json = JSON.stringify([{ name: 'ok', prompt: 'ok' }, { name: 'Bad' }])
-    expect(() => parseBackup(json)).toThrow('Tool 2 is missing a prompt.')
+    expect(() => parseBackup(json)).toThrow('Entry 2 is missing a prompt.')
   })
 })
 

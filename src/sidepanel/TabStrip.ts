@@ -93,7 +93,7 @@ export function renderTabStrip(tabs: ToolTab[], context: TabStripContext): HTMLE
   const list = document.createElement('div')
   list.className = 'folder-tabs-list'
   list.setAttribute('role', 'tablist')
-  list.setAttribute('aria-label', 'Tool tabs')
+  list.setAttribute('aria-label', 'Prompt tabs')
 
   const ids = tabs.map((t) => t.id)
 

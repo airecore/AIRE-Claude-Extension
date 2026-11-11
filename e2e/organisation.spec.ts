@@ -50,7 +50,7 @@ test('signing in as a director shows shared prompts, roster, and analytics', asy
   await expect(page.getByRole('button', { name: 'Manage Organisation' })).toBeVisible()
 
   // The main list's Team section shows the shared prompt too.
-  await page.getByRole('button', { name: 'Back to tools' }).click()
+  await page.getByRole('button', { name: 'Back to prompts' }).click()
   await expect(page.getByText('Acme Inc')).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toBeVisible()
 
@@ -112,7 +112,7 @@ test('a plain member sees the Team section but not Manage Organisation, and can 
   await expect(page.getByRole('button', { name: 'Manage Organisation' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Leave organisation' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Back to tools' }).click()
+  await page.getByRole('button', { name: 'Back to prompts' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Team prompt' })).toBeVisible()
 })
 
@@ -146,7 +146,7 @@ test('an invited person sees who invited them and can accept, landing as a membe
   await expect(page.getByRole('button', { name: 'Decline' })).toBeVisible()
 
   // The list view shows the invite card; nothing shared is visible yet.
-  await page.getByRole('button', { name: 'Back to tools' }).click()
+  await page.getByRole('button', { name: 'Back to prompts' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Accept', exact: true }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Shared prompt' })).toBeVisible()
@@ -163,8 +163,8 @@ test('a new account is a personal account: signing in never forces creating an o
   await expect(page.getByRole('heading', { name: 'Create an organisation' })).toHaveCount(0)
 
   // Personal buttons work as normal while signed in.
-  await page.getByRole('button', { name: 'Back to tools' }).click()
-  await page.getByRole('button', { name: /add tool/i }).click()
+  await page.getByRole('button', { name: 'Back to prompts' }).click()
+  await page.getByRole('button', { name: /add prompt/i }).click()
   await page.getByRole('button', { name: /write your own/i }).click()
   await page.getByRole('textbox').first().fill('Mine')
   await page.locator('textarea').fill('My own prompt')

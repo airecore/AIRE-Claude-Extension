@@ -23,9 +23,9 @@ open a fresh claude.ai tab.
 
 ## 2. Personal buttons (no sign-in)
 
-- [ ] **Add tool to <tab>** opens the library; **Add** on an item puts it in that tab and shows "Added ✓"; **Back** returns to the tab.
+- [ ] **Add prompt to <tab>** opens the library; **Add** on an item puts it in that tab and shows "Added ✓"; **Back** returns to the tab.
 - [ ] Library: **Show prompt** reveals the full text; a Claude-skills item (e.g. Create a Word document) produces a .docx in Claude with file creation turned on.
-- [ ] Add a **Prompt** button via **Write your own** → appears in the list.
+- [ ] Add a **Prompt** button via **Write your own prompt** → appears in the list.
 - [ ] Add a **Skill** button (e.g. `/summary`) → shows the `/` badge.
 - [ ] Click a prompt button → text lands in claude.ai's chat box, **nothing is sent**.
 - [ ] Click a skill button → claude.ai's own `/` picker opens.
@@ -42,8 +42,8 @@ open a fresh claude.ai tab.
 
 ## 3. Backup
 
-- [ ] Settings → **Export tools** → a `.json` file downloads with every button.
-- [ ] **Import tools** with that file → buttons are added (not duplicated away), tabs preserved.
+- [ ] Settings → **Export prompts** → a `.json` file downloads with every button.
+- [ ] **Import prompts** with that file → buttons are added (not duplicated away), tabs preserved.
 - [ ] Import a hand-broken file (invalid JSON) → clean error, no crash, existing buttons untouched.
 - [ ] Import a bare v1 array (no `type`) → entries import as Prompt into "General".
 

@@ -29,7 +29,7 @@ export function renderLibrary(
 
   const heading = document.createElement('h2')
   heading.className = 'settings-heading'
-  heading.textContent = tab ? `Add tools to ${joinTabLabel(tab.emoji, tab.name)}` : 'Add tools'
+  heading.textContent = tab ? `Add prompts to ${joinTabLabel(tab.emoji, tab.name)}` : 'Add prompts'
   panel.appendChild(heading)
 
   const own = document.createElement('button')
@@ -37,7 +37,7 @@ export function renderLibrary(
   own.className = 'library-own'
   own.innerHTML =
     '<span class="library-own-icon gi" aria-hidden="true">✎</span>' +
-    '<span class="library-own-text"><strong>Write your own</strong>' +
+    '<span class="library-own-text"><strong>Write your own prompt</strong>' +
     '<span>Type a prompt or a skill command from scratch.</span></span>'
   own.addEventListener('click', context.onWriteOwn)
   panel.appendChild(own)

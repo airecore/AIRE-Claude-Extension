@@ -50,14 +50,14 @@ export function serializeBackup(tabs: ToolTab[], buttons: Button[]): string {
 
 function parseToolEntry(item: unknown, index: number, defaultTab: string): ImportedTool {
   if (typeof item !== 'object' || item === null) {
-    throw new Error(`Tool ${index + 1} isn't a valid object.`)
+    throw new Error(`Entry ${index + 1} isn't a valid object.`)
   }
   const { name, prompt, type, tab } = item as Record<string, unknown>
   if (typeof name !== 'string' || name.trim().length === 0) {
-    throw new Error(`Tool ${index + 1} is missing a name.`)
+    throw new Error(`Entry ${index + 1} is missing a name.`)
   }
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
-    throw new Error(`Tool ${index + 1} is missing a prompt.`)
+    throw new Error(`Entry ${index + 1} is missing a prompt.`)
   }
   return {
     tab: typeof tab === 'string' && tab.trim().length > 0 ? tab : defaultTab,
@@ -90,7 +90,7 @@ export function parseBackup(json: string): ParsedBackup {
   }
 
   if (typeof parsed !== 'object' || parsed === null) {
-    throw new Error('Expected a tools array or a backup object.')
+    throw new Error('Expected a list of prompts or a backup file.')
   }
   const record = parsed as Record<string, unknown>
 

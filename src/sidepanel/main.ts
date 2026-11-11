@@ -400,8 +400,8 @@ async function refresh(root: HTMLElement): Promise<void> {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
           if (!tab?.id || !tab.url) {
             console.warn('[Claude Tools] no active claude.ai tab to run against')
-            runState.set(button.id, { isRunning: false, error: 'Open claude.ai to use this tool.' })
-            announce('Open claude.ai to use this tool.')
+            runState.set(button.id, { isRunning: false, error: 'Open claude.ai to use this prompt.' })
+            announce('Open claude.ai to use this prompt.')
             if (view.mode === 'list') await refresh(root)
             return
           }
@@ -445,9 +445,9 @@ async function refresh(root: HTMLElement): Promise<void> {
           console.error('[Claude Tools] unexpected error running button', error)
           runState.set(button.id, {
             isRunning: false,
-            error: 'Something went wrong running that tool. Check the console for details.',
+            error: 'Something went wrong running that prompt. Check the console for details.',
           })
-          announce('Something went wrong running that tool. Check the console for details.')
+          announce('Something went wrong running that prompt. Check the console for details.')
           if (view.mode === 'list') await refresh(root)
         }
       },
@@ -472,7 +472,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to add library tool', error)
-          root.textContent = 'Something went wrong adding that tool. Check the console for details.'
+          root.textContent = 'Something went wrong adding that prompt. Check the console for details.'
         }
       },
       onEdit: (button: Button) => {
@@ -490,7 +490,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to delete button', error)
-          root.textContent = 'Something went wrong deleting that tool. Check the console for details.'
+          root.textContent = 'Something went wrong deleting that prompt. Check the console for details.'
         }
       },
       onDrop: async (draggedId: string, targetId: string, position: 'before' | 'after') => {
@@ -508,7 +508,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to reorder buttons', error)
-          root.textContent = 'Something went wrong reordering your tools. Check the console for details.'
+          root.textContent = 'Something went wrong reordering your prompts. Check the console for details.'
         }
       },
       onArrowMove: async (id: string, direction: 'up' | 'down') => {
@@ -527,7 +527,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to reorder buttons', error)
-          root.textContent = 'Something went wrong reordering your tools. Check the console for details.'
+          root.textContent = 'Something went wrong reordering your prompts. Check the console for details.'
         }
       },
       onSave: async (data) => {
@@ -549,7 +549,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to save button', error)
-          root.textContent = 'Something went wrong saving that tool. Check the console for details.'
+          root.textContent = 'Something went wrong saving that prompt. Check the console for details.'
         }
       },
       onSelectTab: async (tabId: string) => {
@@ -645,7 +645,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         const message =
           count === 0
             ? `Delete the "${tab.name}" tab?`
-            : `Delete the "${tab.name}" tab and its ${count} tool${count === 1 ? '' : 's'}? This cannot be undone.`
+            : `Delete the "${tab.name}" tab and its ${count} prompt${count === 1 ? '' : 's'}? This cannot be undone.`
         if (!window.confirm(message)) return
         try {
           await toolService.deleteTab(id, null)
@@ -687,7 +687,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           const url = URL.createObjectURL(blob)
           const link = document.createElement('a')
           link.href = url
-          link.download = 'claude-tools.json'
+          link.download = 'ai-ready-prompts.json'
           document.body.appendChild(link)
           link.click()
           link.remove()
@@ -695,8 +695,8 @@ async function refresh(root: HTMLElement): Promise<void> {
           qaTrack('tools_exported', { count: buttons.length })
         } catch (error) {
           console.error('[Claude Tools] failed to export tools', error)
-          settingsState.error = 'Something went wrong exporting your tools. Check the console for details.'
-          announce('Something went wrong exporting your tools. Check the console for details.')
+          settingsState.error = 'Something went wrong exporting your prompts. Check the console for details.'
+          announce('Something went wrong exporting your prompts. Check the console for details.')
           settingsState.successCount = null
           void refresh(root)
         }
@@ -715,7 +715,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           settingsState.error = null
           settingsState.successCount = parsed.tools.length
           qaTrack('tools_imported', { count: parsed.tools.length })
-          announce(`Imported ${parsed.tools.length} tool${parsed.tools.length === 1 ? '' : 's'}.`)
+          announce(`Imported ${parsed.tools.length} prompt${parsed.tools.length === 1 ? '' : 's'}.`)
           await refresh(root)
         } catch (error) {
           console.error('[Claude Tools] failed to import tools', error)
@@ -1071,7 +1071,7 @@ async function refresh(root: HTMLElement): Promise<void> {
           try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
             if (!tab?.id || !tab.url) {
-              fail('Open claude.ai to use this tool.')
+              fail('Open claude.ai to use this prompt.')
               return
             }
             const runToken = crypto.randomUUID()
@@ -1106,7 +1106,7 @@ async function refresh(root: HTMLElement): Promise<void> {
             }
           } catch (error) {
             console.error('[Claude Tools] unexpected error running team prompt', error)
-            fail('Something went wrong running that tool. Check the console for details.')
+            fail('Something went wrong running that prompt. Check the console for details.')
           }
         } finally {
           if (runState.get(TEAM_RUN_KEY)?.isRunning) runState.delete(TEAM_RUN_KEY)
@@ -1133,7 +1133,7 @@ async function refresh(root: HTMLElement): Promise<void> {
     }
   } catch (error) {
     console.error('[Claude Tools] failed to load buttons', error)
-    root.textContent = 'Something went wrong loading your tools. Check the console for details.'
+    root.textContent = 'Something went wrong loading your prompts. Check the console for details.'
   }
 }
 

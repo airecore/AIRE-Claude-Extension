@@ -31,11 +31,11 @@ Admins see which shared prompts get used and each member's claude.ai usage level
 
 HOW TO USE IT
 1. Open claude.ai and click the AIRE icon in the toolbar to open the sidebar.
-2. Click "Add tool", give it a name and the text to insert.
-3. Click the button any time to put that text in Claude's chat box. Review it, then send.
+2. Click "Add prompt", then pick one from the library or write your own.
+3. Click the prompt any time to put its text in Claude's chat box. Review it, then send.
 
 PRIVACY
-Personal buttons never leave your browser. If you sign in for team features, your email, membership, usage percentages and shared-prompt run counts are stored so your organisation's admins can see them; leaving the organisation deletes that data. The extension never reads or stores your Claude conversations. Full details in the privacy policy.
+Your own prompts never leave your browser. If you sign in for team features, your email, membership, usage percentages and shared-prompt run counts are stored so your organisation's admins can see them; leaving the organisation deletes that data. The extension never reads or stores your Claude conversations. Full details in the privacy policy.
 ```
 
 **Category**: Productivity (Workflow & Planning)

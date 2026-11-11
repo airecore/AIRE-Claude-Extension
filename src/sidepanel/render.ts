@@ -331,11 +331,11 @@ export function renderApp(
     ? activeTab.emoji
       ? `${activeTab.emoji} ${activeTab.name}`
       : activeTab.name
-    : 'Your tools'
+    : 'Your prompts'
   panelHead.appendChild(title)
   const count = document.createElement('span')
   count.className = 'folder-count'
-  count.textContent = visibleButtons.length === 1 ? '1 tool' : `${visibleButtons.length} tools`
+  count.textContent = visibleButtons.length === 1 ? '1 prompt' : `${visibleButtons.length} prompts`
   panelHead.appendChild(count)
 
   const headActions = document.createElement('div')
@@ -387,7 +387,7 @@ export function renderApp(
   if (visibleButtons.length === 0) {
     const empty = document.createElement('p')
     empty.className = 'empty-state'
-    empty.textContent = hasTabs ? 'No tools in this tab yet.' : 'No tools yet.'
+    empty.textContent = hasTabs ? 'No prompts in this tab yet.' : 'No prompts yet.'
     panel.appendChild(empty)
   } else {
   const list = document.createElement('ul')
@@ -416,7 +416,7 @@ export function renderApp(
   addButton.type = 'button'
   addButton.className = 'add-tool-button'
   addButton.innerHTML = '<span class="gi" aria-hidden="true">+</span> '
-  addButton.append(activeTab ? `Add tool to ${activeTab.name}` : 'Add tool')
+  addButton.append(activeTab ? `Add prompt to ${activeTab.name}` : 'Add prompt')
   addButton.addEventListener('click', context.onAddClick)
   panel.appendChild(addButton)
 
