@@ -27,7 +27,8 @@ export interface GetUsageRequest {
   type: 'GET_USAGE'
 }
 
-export type GetUsageResponse = { ok: true; usage: UsageSnapshot } | { ok: false }
+/** site: which chat site the numbers are from ('claude', 'gemini', ...). */
+export type GetUsageResponse = { ok: true; usage: UsageSnapshot; site: string } | { ok: false }
 
 /** Tester build only: a defect seen by the content script, forwarded to
  * the service worker, which queues it (see src/content/qa-report.ts). */

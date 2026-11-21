@@ -53,7 +53,14 @@ Do each of these signed in to the site, on a normal new chat:
       uses it: same three checks.
 - [ ] **Gemini** (gemini.google.com): same three checks.
 - [ ] Multi-line prompt keeps its line breaks on each site.
-- [ ] No usage rings appear on ChatGPT, Copilot or Gemini.
+- [ ] **ChatGPT** usage box sits above Projects/Recents in its sidebar, in
+      ChatGPT's font and colours, showing uses left (deep research, images…).
+- [ ] **Gemini**: open Settings → Usage limits once; the box then shows Current
+      and Weekly % on every Gemini page with "updated …". Its ↻ opens the
+      Usage page.
+- [ ] **Copilot** has no usage box.
+- [ ] Signed in to an organisation: Manage Organisation → Member usage shows a
+      Gemini row as well as a Claude row.
 - [ ] On any other website, clicking a prompt shows "Open Claude, ChatGPT,
       Copilot or Gemini to use this prompt."
 - [ ] A team prompt runs on each site too.

@@ -1,6 +1,7 @@
 import type { OrgMember } from '../shared/org-members'
 import type { OrgPrompt, OrgTab } from '../shared/org-prompts'
 import type { OrgUsageSnapshot } from '../shared/usage-report'
+import { CHAT_SITES } from '../shared/sites'
 import type { OrgAnalytics } from '../shared/org-analytics'
 import { joinTabLabel, splitTabLabel } from '../shared/tab-label'
 import { moveInList } from '../shared/list-order'
@@ -621,12 +622,16 @@ function renderUsageSnapshots(state: ManageOrgState): DocumentFragment {
     item.appendChild(email)
     const percents = document.createElement('span')
     percents.className = 'roster-row-status'
+    const site = CHAT_SITES.find((s) => s.id === snapshot.site)
+    // Gemini calls its short window "current usage"; Claude calls it a session.
+    const shortWindow = snapshot.site === 'gemini' ? 'Current' : 'Session'
     const parts = [
-      snapshot.sessionPercent !== null ? `Session ${snapshot.sessionPercent}%` : null,
+      site?.name ?? snapshot.site,
+      snapshot.sessionPercent !== null ? `${shortWindow} ${snapshot.sessionPercent}%` : null,
       snapshot.weeklyPercent !== null ? `Weekly ${snapshot.weeklyPercent}%` : null,
       snapshot.spendPercent !== null ? `Spend ${snapshot.spendPercent}%` : null,
     ].filter((part): part is string => part !== null)
-    percents.textContent = parts.length > 0 ? parts.join(' · ') : 'No data'
+    percents.textContent = parts.length > 1 ? parts.join(' · ') : `${parts[0]} · No data`
     item.appendChild(percents)
     list.appendChild(item)
   })

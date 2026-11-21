@@ -6,7 +6,11 @@ Saved prompts for [Claude](https://claude.ai), [ChatGPT](https://chatgpt.com),
 Clicking a button types the prompt into that site's chat box for you to
 check. **Nothing is ever sent automatically.**
 
-The usage rings (how much of your limit you have used) are Claude only.
+A usage box in each site's sidebar shows how much of your limit you've
+used: Claude (session, weekly, extra usage), Gemini (current and weekly,
+updated whenever you open Gemini's Usage page) and ChatGPT (uses left per
+feature, such as deep research and images). Copilot shows no usage
+anywhere, so it has no box.
 No API keys or extra accounts are needed: the extension works inside the
 sites you already sign in to.
 
@@ -460,7 +464,7 @@ pnpm.
   content script's copy of the site list with each site's chat-box
   markers (a test keeps it matched to `sites.ts`); `claude-adapter.ts`
   finds the chat box and inserts text (never sends); `usage-widget.ts`
-  draws the usage rings (Claude only); `content-script.ts` handles messages from the sidebar and
+  draws the usage box, with each site's source in `site-usage.ts`; `content-script.ts` handles messages from the sidebar and
   detects when an inserted prompt is actually sent (for analytics).
 - **`src/sidepanel/`** — the sidebar UI (plain TypeScript + DOM).
   `render.ts` builds the page for the current state; `main.ts` is the
@@ -524,8 +528,13 @@ justifications, data-use answers, assets) is in
   extension shows "couldn't find …'s chat box" and needs a code update.
 - **Adding a site** means an entry in `src/shared/sites.ts` and
   `src/content/site-inputs.ts`, and a case in `e2e/chat-sites.spec.ts`.
-- **Usage rings and admin usage reporting are Claude only.** The other
-  sites don't expose usage limits the same way.
+- **Usage differs by site.** Claude: live percentages. Gemini: only its
+  Usage page shows them, so the box keeps the numbers from the last time
+  that page was opened (its refresh button opens it). ChatGPT: uses left
+  per feature, with no percentage, so it isn't sent to the admin
+  dashboard. Copilot: no usage shown anywhere, so no box.
+- **Usage table migration (2026-11).** `usage_snapshots` gained a `site`
+  column; re-run `backend/schema.sql` in Neon before deploying.
 - **Demo font.** The bundled Alfabet font files are a demo licence with
   most punctuation removed (system font is used for those characters).
   Replace them with the licensed files before the public release.

@@ -1,8 +1,13 @@
-import { fetchUsage } from './usage-client'
 import { pollFor } from './claude-adapter'
-import { formatResetLabel } from '../shared/usage'
+import { formatResetLabel, type UsageMeter } from '../shared/usage'
+import { contentSiteForHost } from './site-inputs'
+import { SITE_USAGE, captureGeminiUsage, type SiteUsage } from './site-usage'
 
-const ANCHOR_SELECTOR = '[data-testid="sidebar-recents"]'
+/** This page's usage source, or null when the site shows no usage
+ * (Copilot). An unknown host (a test page) is treated as Claude. */
+export function siteUsage(hostname: string = location.hostname): SiteUsage | null {
+  return SITE_USAGE[contentSiteForHost(hostname)?.id ?? 'claude'] ?? null
+}
 const WIDGET_ID = 'claude-tools-usage-widget'
 const STYLE_ID = 'claude-tools-usage-widget-style'
 
@@ -10,9 +15,10 @@ const RING_RADIUS = 19
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-// Every colour is derived from the text colour claude.ai gives its sidebar
-// (currentColor), so the box matches whatever theme the person uses --
-// light, dark or any other -- instead of always being a dark box. Only the
+// Every colour is derived from the text colour the site gives its sidebar
+// (currentColor) and the font is the site's own (inherit), so the box
+// blends into Claude, ChatGPT and Gemini in whatever theme the person uses
+// -- light, dark or any other -- instead of always being a dark box. Only the
 // meter fills keep fixed green / amber / red, which read on both.
 export const WIDGET_CSS = `
 #${WIDGET_ID} {
@@ -35,6 +41,12 @@ export const WIDGET_CSS = `
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: color-mix(in srgb, currentColor 60%, transparent);
+}
+#${WIDGET_ID} .ctu-updated {
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: color-mix(in srgb, currentColor 45%, transparent);
 }
 #${WIDGET_ID} .ctu-refresh {
   width: 18px;
@@ -135,13 +147,9 @@ function ensureStyleInjected(): void {
   document.head.appendChild(style)
 }
 
-function renderRing(
-  label: string,
-  percent: number,
-  severity: string,
-  resetLabel: string | null,
-  disabledReason: string | null,
-): HTMLElement {
+function renderRing(meter: UsageMeter, resetLabel: string | null): HTMLElement {
+  const { label, percent, severity, disabledReason, remaining } = meter
+  const isCount = typeof remaining === 'number'
   const wrap = document.createElement('div')
   wrap.className = 'ctu-ring'
   wrap.setAttribute('role', 'img')
@@ -149,13 +157,16 @@ function renderRing(
   // A disabled meter (e.g. out of credits) has nothing meaningful to show a
   // percentage for -- the ring renders empty (no fill) and the center shows
   // a dash instead of "0%", which would misleadingly read as "used none".
-  const clamped = disabledReason ? 0 : Math.min(100, Math.max(0, percent))
+  // A count (ChatGPT: "4 left") has no known total, so its ring stays empty.
+  const clamped = disabledReason || isCount ? 0 : Math.min(100, Math.max(0, percent))
   const roundedPct = Math.round(clamped)
   wrap.setAttribute(
     'aria-label',
     disabledReason
       ? `${label}: ${disabledReason}`
-      : resetLabel
+      : isCount
+        ? `${label}: ${remaining} left${resetLabel ? `, ${resetLabel}` : ''}`
+        : resetLabel
         ? `${label}: ${roundedPct}%, ${resetLabel}`
         : `${label}: ${roundedPct}%`,
   )
@@ -184,7 +195,7 @@ function renderRing(
 
   const pct = document.createElement('span')
   pct.className = 'ctu-pct'
-  pct.textContent = disabledReason ? '—' : `${roundedPct}%`
+  pct.textContent = disabledReason ? '—' : isCount ? String(remaining) : `${roundedPct}%`
   wrap.appendChild(pct)
 
   const labelEl = document.createElement('span')
@@ -197,18 +208,28 @@ function renderRing(
     reasonEl.className = 'ctu-reset'
     reasonEl.textContent = disabledReason
     wrap.appendChild(reasonEl)
-  } else if (resetLabel) {
+  } else if (resetLabel || isCount) {
     const resetEl = document.createElement('span')
     resetEl.className = 'ctu-reset'
-    resetEl.textContent = resetLabel
+    resetEl.textContent = isCount ? ['left', resetLabel].filter(Boolean).join(' · ') : resetLabel
     wrap.appendChild(resetEl)
   }
 
   return wrap
 }
 
+/** "updated 5m ago", for numbers kept from an earlier read (Gemini). */
+export function updatedLabel(savedAt: number, now: number): string {
+  const minutes = Math.floor((now - savedAt) / 60_000)
+  if (minutes < 1) return 'updated just now'
+  if (minutes < 60) return `updated ${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  return hours < 24 ? `updated ${hours}h ago` : `updated ${Math.floor(hours / 24)}d ago`
+}
+
 export function buildWidget(
-  meters: { label: string; percent: number; severity: string; resetsAt: string | null; disabledReason: string | null }[],
+  meters: UsageMeter[],
+  options: { savedAt?: number; refreshHint?: string } = {},
 ): HTMLElement {
   const widget = document.createElement('div')
   widget.id = WIDGET_ID
@@ -219,26 +240,36 @@ export function buildWidget(
   const title = document.createElement('span')
   title.className = 'ctu-title'
   title.textContent = 'Usage'
+  const now = Date.now()
+  if (options.savedAt !== undefined) {
+    const updated = document.createElement('span')
+    updated.className = 'ctu-updated'
+    updated.textContent = updatedLabel(options.savedAt, now)
+    title.appendChild(updated)
+  }
   head.appendChild(title)
 
   const refreshButton = document.createElement('button')
   refreshButton.type = 'button'
   refreshButton.className = 'ctu-refresh'
   refreshButton.textContent = '↻'
-  refreshButton.setAttribute('aria-label', 'Refresh usage')
+  const hint = options.refreshHint
+  refreshButton.setAttribute('aria-label', hint ?? 'Refresh usage')
+  refreshButton.title = hint ?? 'Refresh usage'
   refreshButton.addEventListener('click', () => {
-    void refreshWidget()
+    // Gemini only shows its numbers on its Usage page: go there to update.
+    if (hint && location.pathname !== '/usage') location.assign('/usage')
+    else void refreshWidget()
   })
   head.appendChild(refreshButton)
 
   widget.appendChild(head)
 
-  const now = Date.now()
   const rings = document.createElement('div')
   rings.className = 'ctu-rings'
   meters.forEach((meter) => {
-    const resetLabel = formatResetLabel(meter.resetsAt, now)
-    rings.appendChild(renderRing(meter.label, meter.percent, meter.severity, resetLabel, meter.disabledReason))
+    const resetLabel = meter.resetText ?? formatResetLabel(meter.resetsAt, now)
+    rings.appendChild(renderRing(meter, resetLabel))
   })
   widget.appendChild(rings)
 
@@ -247,14 +278,26 @@ export function buildWidget(
 
 let resilienceObserverStarted = false
 let resilienceCheckScheduled = false
+let lastPath = location.pathname
 
 function scheduleResilienceCheck(): void {
   if (resilienceCheckScheduled) return
   resilienceCheckScheduled = true
   setTimeout(() => {
     resilienceCheckScheduled = false
+    const usage = siteUsage()
+    if (!usage) return
+    // Gemini: opening its Usage page updates the kept numbers.
+    const pathChanged = location.pathname !== lastPath
+    lastPath = location.pathname
+    if (location.pathname === '/usage' && usage.refreshHint) {
+      void captureGeminiUsage().then((saved) => {
+        if (saved || pathChanged) void refreshWidget()
+      })
+      return
+    }
     if (document.getElementById(WIDGET_ID)) return
-    if (document.querySelector(ANCHOR_SELECTOR)) void refreshWidget()
+    if (usage.anchor()) void refreshWidget()
   }, 1000)
 }
 
@@ -266,31 +309,37 @@ function startResilienceObserver(): void {
 }
 
 export async function refreshWidget(): Promise<void> {
-  const anchor = document.querySelector(ANCHOR_SELECTOR)
+  const usage = siteUsage()
+  if (!usage) return
+  const anchor = usage.anchor()
   if (!anchor) return
 
-  const response = await fetchUsage()
+  const response = await usage.fetch()
   if (!response.ok || response.usage.meters.length === 0) return
 
   ensureStyleInjected()
 
-  const widget = buildWidget(response.usage.meters)
+  const widget = buildWidget(response.usage.meters, { savedAt: response.savedAt, refreshHint: usage.refreshHint })
   const existing = document.getElementById(WIDGET_ID)
   if (existing) {
     existing.replaceWith(widget)
   } else {
-    // Place it above the Recents list rather than below it, so the meters
-    // sit near the top of claude.ai's sidebar instead of the bottom.
+    // Above the sidebar's chat list rather than below it, so the meters
+    // sit near the top of the sidebar instead of the bottom.
     anchor.insertAdjacentElement('beforebegin', widget)
   }
 }
 
 export async function initUsageWidget(): Promise<void> {
-  const anchor = await pollFor(() => document.querySelector(ANCHOR_SELECTOR), 300, 8000)
+  const usage = siteUsage()
+  if (!usage) return
+  // The observer starts first: Gemini's Usage page and sidebars that load
+  // late are both caught by it.
+  startResilienceObserver()
+  const anchor = await pollFor(usage.anchor, 300, 8000)
   if (!anchor) {
-    console.warn('[Claude Tools] sidebar recents anchor not found; usage widget not injected')
+    console.warn('[Claude Tools] sidebar anchor not found; usage widget not injected yet')
     return
   }
-  startResilienceObserver()
   await refreshWidget()
 }

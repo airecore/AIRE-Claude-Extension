@@ -1,6 +1,5 @@
 import { insertPrompt, watchForSend, pageKind } from './claude-adapter'
-import { initUsageWidget, refreshWidget } from './usage-widget'
-import { fetchUsage } from './usage-client'
+import { initUsageWidget, refreshWidget, siteUsage } from './usage-widget'
 import type { GetUsageRequest, InsertPromptRequest, PromptSentMessage } from '../shared/messages'
 import { installContentQaCapture, qaContentDefect } from './qa-report'
 import { contentSiteForHost as siteForHost } from './site-inputs'
@@ -36,14 +35,11 @@ function start(): void {
 
   console.log('[Claude Tools] content script loaded on', window.location.href)
 
-  // The usage rings read claude.ai's own usage numbers: Claude only.
+  // The usage box: Claude, ChatGPT and Gemini (Copilot shows no usage).
   const site = siteForHost(location.hostname)
-  const isClaude = !site || site.id === 'claude'
-  if (isClaude) {
-    initUsageWidget().catch((error) => {
-      console.warn('[Claude Tools] usage box could not start', error)
-    })
-  }
+  initUsageWidget().catch((error) => {
+    console.warn('[Claude Tools] usage box could not start', error)
+  })
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || (message as InsertPromptRequest).type !== 'INSERT_PROMPT') return undefined
@@ -59,7 +55,7 @@ function start(): void {
             editables: document.querySelectorAll('[contenteditable="true"], textarea').length,
           })
         }
-        if (isClaude) void refreshWidget()
+        void refreshWidget()
         if (response.ok && runToken) {
           watchForSend(() => {
             const sent: PromptSentMessage = { type: 'PROMPT_SENT', runToken }
@@ -82,8 +78,14 @@ function start(): void {
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || (message as GetUsageRequest).type !== 'GET_USAGE') return undefined
-    fetchUsage()
-      .then((result) => sendResponse(result))
+    const usage = siteUsage()
+    if (!usage) {
+      sendResponse({ ok: false })
+      return undefined
+    }
+    usage
+      .fetch()
+      .then((result) => sendResponse(result.ok ? { ok: true, usage: result.usage, site: site?.id ?? 'claude' } : result))
       .catch((error) => {
         console.error('[Claude Tools] unexpected error during fetchUsage', error)
         sendResponse({ ok: false })

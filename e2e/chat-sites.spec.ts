@@ -49,6 +49,18 @@ const SITES: SiteCase[] = [
     clear: 'document.querySelector("#userInput").value = ""',
   },
   {
+    // Copilot's Lexical editor drops typed line breaks; a paste keeps them.
+    // This stand-in behaves the same way: it only handles paste events.
+    name: 'Copilot (copilot.com, multi-line)',
+    url: 'https://copilot.com/chat',
+    html:
+      '<span id="m365-chat-editor-target-element" contenteditable="true" role="textbox" aria-label="Message Copilot"></span>' +
+      '<script>const e=document.getElementById("m365-chat-editor-target-element");' +
+      'e.addEventListener("paste",(ev)=>{ev.preventDefault();e.innerText=ev.clipboardData.getData("text/plain")})</script>',
+    input: '#m365-chat-editor-target-element',
+    clear: 'document.querySelector("#m365-chat-editor-target-element").textContent = ""',
+  },
+  {
     name: 'Gemini',
     url: 'https://gemini.google.com/app',
     // The hidden-purpose .ql-clipboard editable comes FIRST on purpose:

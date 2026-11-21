@@ -36,6 +36,7 @@ export const CHAT_SITES: readonly ChatSite[] = [
     inputSelectors: [
       '#prompt-textarea',
       'div.ProseMirror[contenteditable="true"]',
+      '[contenteditable="true"][aria-label*="ChatGPT" i]',
       'textarea[aria-label*="ChatGPT" i]',
       'textarea[placeholder*="ChatGPT" i]',
     ],
@@ -46,6 +47,8 @@ export const CHAT_SITES: readonly ChatSite[] = [
     // Consumer Copilot (both addresses) and Microsoft 365 Copilot.
     hosts: ['copilot.microsoft.com', 'copilot.com', 'copilot.cloud.microsoft', 'm365.cloud.microsoft'],
     inputSelectors: [
+      // Copilot's Lexical editor (copilot.com/chat, 2026-11).
+      '#m365-chat-editor-target-element',
       'textarea#userInput',
       '[data-testid="composer-input"]',
       '[contenteditable="true"][aria-label*="Copilot" i]',

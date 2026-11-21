@@ -295,14 +295,14 @@ async function reportCurrentUsage(): Promise<void> {
   if (!idToken) return
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    // Only a claude.ai tab has the content script that answers GET_USAGE.
-    // Anything else (or a claude.ai tab opened before the last extension
-    // reload) just has no receiver -- skip quietly, this is a background poll.
-    if (!tab?.id || !tab.url?.startsWith('https://claude.ai/')) return
+    // Only a chat-site tab has the content script that answers GET_USAGE.
+    // Anything else (or a tab opened before the last extension reload)
+    // just has no receiver -- skip quietly, this is a background poll.
+    if (!tab?.id || !siteForUrl(tab.url)) return
     const response = await chrome.tabs.sendMessage<GetUsageRequest, GetUsageResponse>(tab.id, {
       type: 'GET_USAGE',
     })
-    if (response.ok) await reportUsage(idToken, response.usage)
+    if (response.ok) await reportUsage(idToken, response.usage, response.site)
   } catch (error) {
     console.debug('[Claude Tools] usage report skipped (no content script in the active tab)', error)
   }

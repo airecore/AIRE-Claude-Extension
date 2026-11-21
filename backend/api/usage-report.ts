@@ -8,6 +8,10 @@ const sql = neon(process.env.DATABASE_URL ?? '')
 
 const INVALID_PERCENT = Symbol('invalid percent')
 
+// The chat sites that report usage. A report without one is from an older
+// extension, which only ever reported Claude.
+const SITES = new Set(['claude', 'chatgpt', 'copilot', 'gemini'])
+
 // usage_snapshots' percent columns are `integer`, but claude.ai's own
 // percentages are fractional. The extension rounds before sending; round
 // again here so an unrounded value from any other caller is accepted and
@@ -41,7 +45,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  const body = (req.body ?? {}) as { sessionPercent?: unknown; weeklyPercent?: unknown; spendPercent?: unknown }
+  const body = (req.body ?? {}) as { site?: unknown; sessionPercent?: unknown; weeklyPercent?: unknown; spendPercent?: unknown }
+  const site = body.site === undefined ? 'claude' : body.site
+  if (typeof site !== 'string' || !SITES.has(site)) {
+    res.status(400).json({ error: 'unknown site' })
+    return
+  }
   const sessionPercent = normalizePercent(body.sessionPercent)
   const weeklyPercent = normalizePercent(body.weeklyPercent)
   const spendPercent = normalizePercent(body.spendPercent)
@@ -64,9 +73,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${membership.orgId}, true)`,
       sql`
-        INSERT INTO usage_snapshots (org_id, email, session_percent, weekly_percent, spend_percent, updated_at)
-        VALUES (${membership.orgId}, ${email.toLowerCase()}, ${sessionPercent}, ${weeklyPercent}, ${spendPercent}, now())
-        ON CONFLICT (org_id, email) DO UPDATE SET
+        INSERT INTO usage_snapshots (org_id, email, site, session_percent, weekly_percent, spend_percent, updated_at)
+        VALUES (${membership.orgId}, ${email.toLowerCase()}, ${site}, ${sessionPercent}, ${weeklyPercent}, ${spendPercent}, now())
+        ON CONFLICT (org_id, email, site) DO UPDATE SET
           session_percent = excluded.session_percent,
           weekly_percent = excluded.weekly_percent,
           spend_percent = excluded.spend_percent,

@@ -57,6 +57,7 @@ describe('parseUsageResponse', () => {
     const result = parseUsageResponse(REAL_RESPONSE)
     expect(result.meters).toContainEqual({
       label: 'Session',
+      key: 'session',
       percent: 12,
       severity: 'normal',
       resetsAt: '2026-08-18T14:10:00.150665+00:00',
@@ -64,6 +65,7 @@ describe('parseUsageResponse', () => {
     })
     expect(result.meters).toContainEqual({
       label: 'Weekly',
+      key: 'weekly',
       percent: 25,
       severity: 'normal',
       resetsAt: '2026-08-19T23:00:00.150689+00:00',
@@ -75,6 +77,7 @@ describe('parseUsageResponse', () => {
     const result = parseUsageResponse(REAL_RESPONSE)
     expect(result.meters).toContainEqual({
       label: 'Extra usage',
+      key: 'spend',
       percent: 73,
       severity: 'normal',
       resetsAt: null,
@@ -99,6 +102,7 @@ describe('parseUsageResponse', () => {
     const result = parseUsageResponse(response)
     expect(result.meters).toContainEqual({
       label: 'Extra usage',
+      key: 'spend',
       percent: 0,
       severity: 'normal',
       resetsAt: null,
@@ -209,5 +213,43 @@ describe('formatResetLabel', () => {
   it('reports days for a day or more away', () => {
     expect(formatResetLabel('2026-08-19T13:00:00.000Z', NOW)).toBe('resets in 1d')
     expect(formatResetLabel('2026-08-24T12:00:00.000Z', NOW)).toBe('resets in 6d')
+  })
+})
+
+describe('other sites', () => {
+  it('reads ChatGPT uses-left per feature, skipping internal ones', async () => {
+    const { parseChatGptLimits } = await import('../../src/shared/usage')
+    const snap = parseChatGptLimits({
+      limits_progress: [
+        { feature_name: 'deep_research', remaining: 4, reset_after: '2026-11-24T23:24:08+00:00' },
+        { feature_name: 'paste_text_to_file', remaining: 3, reset_after: '2026-11-22T02:53:50+00:00' },
+        { feature_name: 'image_gen', remaining: 0, reset_after: '2026-11-22T02:53:50+00:00' },
+      ],
+    })
+    expect(snap.meters.map((m) => [m.label, m.remaining, m.severity])).toEqual([
+      ['Deep research', 4, 'normal'],
+      ['Images', 0, 'critical'],
+    ])
+    expect(snap.meters.every((m) => m.key === undefined)).toBe(true)
+    expect(parseChatGptLimits({}).meters).toEqual([])
+  })
+
+  it("reads Gemini's usage windows from its Usage page text", async () => {
+    const { parseGeminiUsageItem } = await import('../../src/shared/usage')
+    expect(parseGeminiUsageItem('Current usage\ninfo\n35% used\nResets at 1:04 PM')).toMatchObject({
+      label: 'Current',
+      key: 'session',
+      percent: 35,
+      severity: 'normal',
+      resetText: 'resets at 1:04 PM',
+    })
+    expect(parseGeminiUsageItem('Weekly limit\nResets Nov 28 at 11:04 AM\n92% used')).toMatchObject({
+      label: 'Weekly',
+      key: 'weekly',
+      percent: 92,
+      severity: 'critical',
+      resetText: 'resets Nov 28 at 11:04 AM',
+    })
+    expect(parseGeminiUsageItem('Get 2x more usage with AI Plus')).toBeNull()
   })
 })

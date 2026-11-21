@@ -28,7 +28,7 @@ TEAM PROMPTS (OPTIONAL)
 Sign in to share one prompt library with your organisation.
 Admins publish shared prompts in tabs such as Sales and Support, and every member gets them instantly alongside their own.
 Invite teammates by email. Nobody joins a team without accepting the invite, and colleagues at your company's email domain can ask to join for an admin to approve.
-Admins see which shared prompts get used and each member's Claude usage levels, to keep the library useful and spot when the team is close to its limits.
+Admins see which shared prompts get used and each member's Claude and Gemini usage levels, to keep the library useful and spot when the team is close to its limits.
 
 HOW TO USE IT
 1. Open Claude, ChatGPT, Copilot or Gemini and click the AIRE icon in the toolbar to open the sidebar.
@@ -73,9 +73,9 @@ licensed font is swapped in.
 | `identity` | permissions | Opens the optional sign-in window (OAuth) used only for the team prompt-sharing feature. Not used unless the user clicks Sign in. |
 | `scripting` | permissions | When the user clicks a prompt button in a supported chat tab that was already open before the extension was installed or updated, Chrome has not yet loaded the extension's own script into that tab. This permission lets the extension load that same script (the one its manifest already runs on those sites) so the prompt can be typed, instead of asking the user to reload the page. It only runs on the supported chat sites, after the user clicks a button. |
 | `https://claude.ai/*` | host_permissions | Types the user's chosen prompt into Claude's chat box when they click a button, and shows the user's own Claude usage levels in Claude's sidebar. |
-| `https://chatgpt.com/*`, `https://chat.openai.com/*` | host_permissions | Types the user's chosen prompt into ChatGPT's chat box when they click a button. Nothing else is read or changed. |
+| `https://chatgpt.com/*`, `https://chat.openai.com/*` | host_permissions | Types the user's chosen prompt into ChatGPT's chat box when they click a button, and shows the user's own ChatGPT usage (uses left per feature) in ChatGPT's sidebar. |
 | `https://copilot.microsoft.com/*`, `https://copilot.com/*`, `https://copilot.cloud.microsoft/*`, `https://m365.cloud.microsoft/*` | host_permissions | Types the user's chosen prompt into Microsoft Copilot's chat box (consumer and Microsoft 365) when they click a button. Nothing else is read or changed. |
-| `https://gemini.google.com/*` | host_permissions | Types the user's chosen prompt into Gemini's chat box when they click a button. Nothing else is read or changed. |
+| `https://gemini.google.com/*` | host_permissions | Types the user's chosen prompt into Gemini's chat box when they click a button, and shows the user's own Gemini usage levels (read from Gemini's Usage page) in Gemini's sidebar. |
 | Backend URL (`API_BASE_URL`) | host_permissions | Our own server, used only for the optional team features: loading the organisation's shared prompts, membership, invites and admin analytics. |
 | Clerk sign-in host (`CLERK_DOMAIN`) | host_permissions | Our sign-in provider's token endpoint, called once when the user signs in to exchange the sign-in code for a session. |
 
@@ -96,7 +96,7 @@ licensed font is swapped in.
 | Personal communications | No | | | |
 | Location | No (IP address used only for 1-day rate limiting) | | | |
 | Web history | No | | | |
-| User activity | Yes (count of shared-prompt sends; claude.ai usage percentages) | Yes, when signed in and an active member | Admin analytics for the organisation | No |
+| User activity | Yes (count of shared-prompt sends; Claude and Gemini usage percentages) | Yes, when signed in and an active member | Admin analytics for the organisation | No |
 | Website content | No (conversation content is never read or sent) | | | |
 
 ### Data Use Certification

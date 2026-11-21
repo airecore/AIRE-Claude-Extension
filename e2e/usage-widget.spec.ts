@@ -61,3 +61,84 @@ for (const theme of ['light', 'dark'] as const) {
     await page.locator('#sidebar').screenshot({ path: `test-results/usage-widget-${theme}.png` })
   })
 }
+
+// ChatGPT and Gemini get the same box, in their own sidebar, from their own
+// numbers (shapes recorded from the live sites, 2026-11). Copilot shows no
+// usage anywhere, so it gets none.
+
+test("ChatGPT: the box shows uses left per feature, from ChatGPT's own numbers", async ({ context }) => {
+  await context.route('https://chatgpt.com/**', (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { accessToken: 'test-token' } })
+    if (url.pathname === '/backend-api/conversation/init') {
+      if (route.request().headers()['authorization'] !== 'Bearer test-token') return route.fulfill({ status: 401 })
+      return route.fulfill({
+        json: {
+          limits_progress: [
+            { feature_name: 'deep_research', remaining: 4, reset_after: '2099-01-01T00:00:00+00:00' },
+            { feature_name: 'image_gen', remaining: 0, reset_after: '2099-01-01T00:00:00+00:00' },
+            { feature_name: 'paste_text_to_file', remaining: 3, reset_after: '2099-01-01T00:00:00+00:00' },
+          ],
+        },
+      })
+    }
+    return route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><body style="background:#181818;color:rgb(237, 237, 237);font-family:monospace">
+        <nav aria-label="Chat history"><div class="group/nav-section">Recents</div></nav>
+        <div class="ProseMirror" contenteditable="true" aria-label="Ask ChatGPT"></div></body>`,
+    })
+  })
+  const page = await context.newPage()
+  await page.goto('https://chatgpt.com/')
+  const widget = page.locator('#claude-tools-usage-widget')
+  await expect(widget.locator('.ctu-ring')).toHaveCount(2)
+  await expect(widget.locator('.ctu-ring').first()).toHaveAttribute('aria-label', /Deep research: 4 left/)
+  await expect(widget.locator('.ctu-pct').nth(1)).toHaveText('0')
+  // Inside ChatGPT's sidebar, above its first section, in its font and colour.
+  expect(await widget.evaluate((el) => el.nextElementSibling?.textContent)).toBe('Recents')
+  expect(await widget.evaluate((el) => getComputedStyle(el).fontFamily)).toBe('monospace')
+  expect(await widget.evaluate((el) => getComputedStyle(el.querySelector('.ctu-pct')!).color)).toBe('rgb(237, 237, 237)')
+})
+
+test("Gemini: its Usage page's numbers are kept and shown on every Gemini page", async ({ context }) => {
+  const sidebar = `<div data-test-id="overflow-container"><expandable-section>Notebooks</expandable-section></div>`
+  await context.route('https://gemini.google.com/**', (route) => {
+    const url = new URL(route.request().url())
+    const usage =
+      url.pathname === '/usage'
+        ? `<ul aria-label="Usage windows">
+             <li><div>Current usage</div><div>35% used</div><div>Resets at 1:04 PM</div></li>
+             <li><div>Weekly limit</div><div>Resets Nov 28 at 11:04 AM</div><div>80% used</div></li></ul>`
+        : '<rich-textarea><div class="ql-editor" contenteditable="true"></div></rich-textarea>'
+    return route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><body style="font-family:cursive">${sidebar}${usage}</body>`,
+    })
+  })
+  const page = await context.newPage()
+  await page.goto('https://gemini.google.com/usage')
+  const widget = page.locator('#claude-tools-usage-widget')
+  await expect(widget.locator('.ctu-ring')).toHaveCount(2)
+
+  await page.goto('https://gemini.google.com/app')
+  await expect(widget.locator('.ctu-pct')).toHaveText(['35%', '80%'])
+  await expect(widget.locator('.ctu-reset').first()).toHaveText('resets at 1:04 PM')
+  await expect(widget.locator('.ctu-updated')).toHaveText(/updated/)
+  expect(await widget.evaluate((el) => getComputedStyle(el).fontFamily)).toBe('cursive')
+})
+
+test('Copilot shows no usage anywhere, so it gets no box', async ({ context }) => {
+  await context.route('https://copilot.microsoft.com/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><body><span contenteditable="true" aria-label="Message Copilot"></span></body>',
+    }),
+  )
+  const page = await context.newPage()
+  const loaded = page.waitForEvent('console', (m) => m.text().includes('content script loaded'))
+  await page.goto('https://copilot.microsoft.com/')
+  await loaded
+  await page.waitForTimeout(1500)
+  await expect(page.locator('#claude-tools-usage-widget')).toHaveCount(0)
+})

@@ -144,6 +144,12 @@ create table if not exists usage_snapshots (
   primary key (org_id, email)
 );
 
+-- One row per member per chat site (2026-11): Claude, Gemini, ... each
+-- report their own usage. Existing rows are Claude's. Safe to re-run.
+alter table usage_snapshots add column if not exists site text not null default 'claude';
+alter table usage_snapshots drop constraint if exists usage_snapshots_pkey;
+alter table usage_snapshots add primary key (org_id, email, site);
+
 alter table usage_snapshots enable row level security;
 alter table usage_snapshots force row level security;
 

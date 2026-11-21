@@ -1,7 +1,8 @@
 import { parseUsageResponse } from '../shared/usage'
 import type { UsageSnapshot } from '../shared/usage'
 
-export type FetchUsageResult = { ok: true; usage: UsageSnapshot } | { ok: false }
+/** savedAt: when kept numbers were read (Gemini); absent for live ones. */
+export type FetchUsageResult = { ok: true; usage: UsageSnapshot; savedAt?: number } | { ok: false }
 
 function readCookie(name: string): string | null {
   // Some pages (sandboxed or opaque-origin frames) refuse cookie access

@@ -7,6 +7,14 @@ export interface UsageMeter {
    * credits) — a friendly explanation to show instead of a percentage. Null
    * for a normal, active meter. */
   disabledReason: string | null
+  /** Which reported figure this is, for the admin dashboard. Unset for a
+   * meter that is only shown (ChatGPT's per-feature counts). */
+  key?: 'session' | 'weekly' | 'spend'
+  /** A count instead of a percentage: ChatGPT says "4 left", not "60% used". */
+  remaining?: number
+  /** The site's own reset wording when it gives no timestamp (Gemini:
+   * "Resets at 1:04 PM"). Shown instead of a computed "resets in 3h". */
+  resetText?: string
 }
 
 export interface UsageSnapshot {
@@ -37,7 +45,8 @@ function parseLimitEntry(entry: unknown): UsageMeter | null {
   const severity = entry.severity
   if (typeof kind !== 'string' || typeof percent !== 'number' || typeof severity !== 'string') return null
   const resetsAt = typeof entry.resets_at === 'string' ? entry.resets_at : null
-  return { label: limitLabel(kind, entry.scope), percent, severity, resetsAt, disabledReason: null }
+  const key = kind === 'session' ? 'session' : kind === 'weekly_all' ? 'weekly' : undefined
+  return { label: limitLabel(kind, entry.scope), percent, severity, resetsAt, disabledReason: null, key }
 }
 
 /** Known kinds get a fixed label; a model-scoped limit (e.g. `weekly_scoped`)
@@ -57,12 +66,12 @@ function parseSpendMeter(spend: unknown): UsageMeter | null {
   if (typeof percent !== 'number' || typeof severity !== 'string') return null
 
   if (spend.enabled === true) {
-    return { label: 'Extra usage', percent, severity, resetsAt: null, disabledReason: null }
+    return { label: 'Extra usage', percent, severity, resetsAt: null, disabledReason: null, key: 'spend' }
   }
 
   const disabledReason = typeof spend.disabled_reason === 'string' ? spend.disabled_reason : null
   if (!disabledReason) return null
-  return { label: 'Extra usage', percent, severity, resetsAt: null, disabledReason: friendlyDisabledReason(disabledReason) }
+  return { label: 'Extra usage', percent, severity, resetsAt: null, disabledReason: friendlyDisabledReason(disabledReason), key: 'spend' }
 }
 
 export function formatResetLabel(resetsAt: string | null, nowMs: number): string | null {
@@ -99,4 +108,61 @@ export function parseUsageResponse(raw: unknown): UsageSnapshot {
   if (spendMeter) meters.push(spendMeter)
 
   return { meters }
+}
+
+/** Severity from a percentage, for sites that only give the number. */
+export function severityFor(percent: number): string {
+  if (percent >= 90) return 'critical'
+  if (percent >= 70) return 'warning'
+  return 'normal'
+}
+
+const CHATGPT_FEATURES: Record<string, string> = {
+  deep_research: 'Deep research',
+  image_gen: 'Images',
+  reason: 'Thinking',
+  file_upload: 'File uploads',
+}
+
+/** ChatGPT's `limits_progress` (from /backend-api/conversation/init):
+ * uses left per feature and when each resets. Unknown and internal
+ * features are skipped. */
+export function parseChatGptLimits(raw: unknown): UsageSnapshot {
+  if (!isRecord(raw) || !Array.isArray(raw.limits_progress)) return { meters: [] }
+  const meters: UsageMeter[] = []
+  for (const entry of raw.limits_progress) {
+    if (!isRecord(entry)) continue
+    const label = typeof entry.feature_name === 'string' ? CHATGPT_FEATURES[entry.feature_name] : undefined
+    if (!label || typeof entry.remaining !== 'number') continue
+    meters.push({
+      label,
+      percent: 0,
+      severity: entry.remaining === 0 ? 'critical' : entry.remaining <= 2 ? 'warning' : 'normal',
+      resetsAt: typeof entry.reset_after === 'string' ? entry.reset_after : null,
+      disabledReason: null,
+      remaining: entry.remaining,
+    })
+  }
+  return { meters }
+}
+
+/** One window from Gemini's Usage page, as its text reads:
+ * "Current usage | 0% used | Resets at 1:04 PM". */
+export function parseGeminiUsageItem(text: string): UsageMeter | null {
+  const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+  const used = text.match(/(\d+(?:\.\d+)?)\s*% used/i)
+  if (lines.length === 0 || !used) return null
+  const name = lines[0]
+  const weekly = /week/i.test(name)
+  const percent = Number(used[1])
+  const reset = lines.find((line) => /^resets?(\s|$)/i.test(line))
+  return {
+    label: weekly ? 'Weekly' : /current|session|daily/i.test(name) ? 'Current' : name,
+    percent,
+    severity: severityFor(percent),
+    resetsAt: null,
+    disabledReason: null,
+    key: weekly ? 'weekly' : /current|session|daily/i.test(name) ? 'session' : undefined,
+    resetText: reset ? reset.charAt(0).toLowerCase() + reset.slice(1) : undefined,
+  }
 }

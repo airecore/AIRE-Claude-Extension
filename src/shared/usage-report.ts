@@ -2,6 +2,8 @@ import { API_BASE_URL } from './org-prompts'
 import type { UsageSnapshot } from './usage'
 
 export interface UsageReportBody {
+  /** Which chat site these figures are from: 'claude', 'gemini', ... */
+  site: string
   sessionPercent: number | null
   weeklyPercent: number | null
   spendPercent: number | null
@@ -16,23 +18,28 @@ function toIntegerPercent(percent: number | undefined): number | null {
   return Math.round(percent)
 }
 
-export function usageSnapshotToReportBody(snapshot: UsageSnapshot): UsageReportBody {
-  const session = snapshot.meters.find((m) => m.label === 'Session')
-  const weekly = snapshot.meters.find((m) => m.label === 'Weekly')
-  const spend = snapshot.meters.find((m) => m.label === 'Extra usage')
+export function usageSnapshotToReportBody(snapshot: UsageSnapshot, site = 'claude'): UsageReportBody {
+  const session = snapshot.meters.find((m) => m.key === 'session')
+  const weekly = snapshot.meters.find((m) => m.key === 'weekly')
+  const spend = snapshot.meters.find((m) => m.key === 'spend')
   return {
+    site,
     sessionPercent: toIntegerPercent(session?.percent),
     weeklyPercent: toIntegerPercent(weekly?.percent),
     spendPercent: toIntegerPercent(spend?.percent),
   }
 }
 
-export async function reportUsage(idToken: string, snapshot: UsageSnapshot): Promise<boolean> {
+/** False without sending when the site gives no percentages (ChatGPT's
+ * counts are shown on the page but have nothing to report). */
+export async function reportUsage(idToken: string, snapshot: UsageSnapshot, site = 'claude'): Promise<boolean> {
+  const body = usageSnapshotToReportBody(snapshot, site)
+  if (body.sessionPercent === null && body.weeklyPercent === null && body.spendPercent === null) return false
   try {
     const response = await fetch(`${API_BASE_URL}/api/usage-report`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(usageSnapshotToReportBody(snapshot)),
+      body: JSON.stringify(body),
     })
     return response.ok
   } catch (error) {
@@ -43,6 +50,7 @@ export async function reportUsage(idToken: string, snapshot: UsageSnapshot): Pro
 
 export interface OrgUsageSnapshot {
   email: string
+  site: string
   sessionPercent: number | null
   weeklyPercent: number | null
   spendPercent: number | null
@@ -64,11 +72,13 @@ function parseSnapshot(entry: unknown): OrgUsageSnapshot | null {
   const weeklyPercent = entry.weeklyPercent
   const spendPercent = entry.spendPercent
   const updatedAt = entry.updatedAt
+  // Snapshots from before sites were tracked are all Claude.
+  const site = typeof entry.site === 'string' ? entry.site : 'claude'
   if (typeof email !== 'string' || typeof updatedAt !== 'string') return null
   if (!isPercentOrNull(sessionPercent) || !isPercentOrNull(weeklyPercent) || !isPercentOrNull(spendPercent)) {
     return null
   }
-  return { email, sessionPercent, weeklyPercent, spendPercent, updatedAt }
+  return { email, site, sessionPercent, weeklyPercent, spendPercent, updatedAt }
 }
 
 export function parseOrgUsageResponse(raw: unknown): OrgUsageSnapshot[] {

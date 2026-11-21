@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content-script.ts-CO08m8Np.js"
+        "assets/content-script.ts-aQTV4NqK.js"
       ],
       "matches": [
         "https://claude.ai/*",
@@ -71,7 +71,7 @@
         "https://m365.cloud.microsoft/*"
       ],
       "resources": [
-        "assets/content-script.ts-CO08m8Np.js"
+        "assets/content-script.ts-aQTV4NqK.js"
       ],
       "use_dynamic_url": false
     }

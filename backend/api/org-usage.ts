@@ -27,10 +27,11 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
 
     const results = await sql.transaction([
       sql`SELECT set_config('app.current_org_id', ${director.orgId}, true)`,
-      sql`SELECT email, session_percent, weekly_percent, spend_percent, updated_at FROM usage_snapshots WHERE org_id = ${director.orgId}`,
+      sql`SELECT email, site, session_percent, weekly_percent, spend_percent, updated_at FROM usage_snapshots WHERE org_id = ${director.orgId} ORDER BY email, site`,
     ])
     const snapshots = results[1] as {
       email: string
+      site: string
       session_percent: number | null
       weekly_percent: number | null
       spend_percent: number | null
@@ -40,6 +41,7 @@ async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     res.status(200).json({
       snapshots: snapshots.map((s) => ({
         email: s.email,
+        site: s.site,
         sessionPercent: s.session_percent,
         weeklyPercent: s.weekly_percent,
         spendPercent: s.spend_percent,
