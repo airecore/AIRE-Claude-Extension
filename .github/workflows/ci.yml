@@ -19,6 +19,16 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm test
       - run: pnpm run build
+      # Testers load the committed extension/ folder. If its manifest no
+      # longer matches a fresh build (new sites, permissions, version),
+      # someone forgot `pnpm run build:extension`.
+      - name: extension/ folder is up to date
+        run: |
+          node -e "
+            const pick = (m) => JSON.stringify({ v: m.version, d: m.description, p: m.permissions, h: m.host_permissions, c: m.content_scripts.map((s) => s.matches) })
+            const built = pick(require('./dist/manifest.json')), committed = pick(require('./extension/manifest.json'))
+            if (built !== committed) { console.error('extension/ is out of date: run pnpm run build:extension and commit it'); process.exit(1) }
+          "
 
   e2e:
     name: E2E (real extension, real Chromium)

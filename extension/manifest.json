@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Ready Tools Extension",
   "version": "1.0.0",
-  "description": "Saved prompts and skills for claude.ai in a sidebar, plus optional team prompt sharing. Nothing is sent automatically.",
+  "description": "Saved prompts for Claude, ChatGPT, Copilot and Gemini in a sidebar, plus optional team sharing. Nothing is sent automatically.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5XVB/dXgxQE8jwyqw4Rpvz/OscKGE/KeOplSBusI8gn+2mqrdh9Pq0i+HIop95bsz/KbMml+uCvgJMLVgstHlO3TxGc1E5T5u13kL/g0CoZDd5khfx2SSJVAwSWoNs3ttZT72xJ3p6TgeJbj4++b1ECTEmU41DxEvChJcdsGk91La7wZg+9Flaqv0Eh2J/qCj/1eGcmLIBNv9BfuLRw1L3MGZSN/jJFEAnSFnIcKGtdz86/EexjTcctx4RTQf7b1LQeaaz93qjZ7mCzDBC7XfHnzkJI38qaScfSd6StGRiiaE1FoWxpVMrDRLSqte7V72Eio/TiaRNHp31kcnQ4l1wIDAQAB",
   "icons": {
     "16": "src/icons/icon-16.png",
@@ -18,6 +18,13 @@
   ],
   "host_permissions": [
     "https://claude.ai/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://copilot.microsoft.com/*",
+    "https://copilot.com/*",
+    "https://copilot.cloud.microsoft/*",
+    "https://m365.cloud.microsoft/*",
+    "https://gemini.google.com/*",
     "https://claude-extension-xi.vercel.app/*",
     "https://innocent-lamb-6401.clerk.accounts.dev/*"
   ],
@@ -28,10 +35,17 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content-script.ts-CLAfUuzP.js"
+        "assets/content-script.ts-CO08m8Np.js"
       ],
       "matches": [
-        "https://claude.ai/*"
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://copilot.com/*",
+        "https://copilot.cloud.microsoft/*",
+        "https://m365.cloud.microsoft/*",
+        "https://gemini.google.com/*"
       ]
     }
   ],
@@ -47,10 +61,17 @@
   "web_accessible_resources": [
     {
       "matches": [
-        "https://claude.ai/*"
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://copilot.cloud.microsoft/*",
+        "https://copilot.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://gemini.google.com/*",
+        "https://m365.cloud.microsoft/*"
       ],
       "resources": [
-        "assets/content-script.ts-CLAfUuzP.js"
+        "assets/content-script.ts-CO08m8Np.js"
       ],
       "use_dynamic_url": false
     }
