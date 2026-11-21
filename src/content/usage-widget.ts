@@ -328,6 +328,25 @@ export async function refreshWidget(): Promise<void> {
     // sit near the top of the sidebar instead of the bottom.
     anchor.insertAdjacentElement('beforebegin', widget)
   }
+  matchSidebarFont(widget, anchor)
+}
+
+/** The first element under `root` that shows text itself. */
+function firstTextElement(root: Element): Element | null {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => ((node.textContent ?? '').trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+  })
+  return walker.nextNode()?.parentElement ?? null
+}
+
+/**
+ * Uses the font of the sidebar text right below the box. Gemini sets its
+ * font on each sidebar item, not on the sidebar, so inheriting alone gave
+ * the browser's default serif font there.
+ */
+export function matchSidebarFont(widget: HTMLElement, anchor: Element): void {
+  const sample = firstTextElement(anchor)
+  if (sample) widget.style.fontFamily = getComputedStyle(sample).fontFamily
 }
 
 export async function initUsageWidget(): Promise<void> {

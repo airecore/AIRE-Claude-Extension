@@ -102,7 +102,8 @@ test("ChatGPT: the box shows uses left per feature, from ChatGPT's own numbers",
 })
 
 test("Gemini: its Usage page's numbers are kept and shown on every Gemini page", async ({ context }) => {
-  const sidebar = `<div data-test-id="overflow-container"><expandable-section>Notebooks</expandable-section></div>`
+  // Like the real Gemini, the font is set on the sidebar items, not the page.
+  const sidebar = `<div data-test-id="overflow-container"><expandable-section><span style="font-family:fantasy">Notebooks</span></expandable-section></div>`
   await context.route('https://gemini.google.com/**', (route) => {
     const url = new URL(route.request().url())
     const usage =
@@ -125,7 +126,7 @@ test("Gemini: its Usage page's numbers are kept and shown on every Gemini page",
   await expect(widget.locator('.ctu-pct')).toHaveText(['35%', '80%'])
   await expect(widget.locator('.ctu-reset').first()).toHaveText('resets at 1:04 PM')
   await expect(widget.locator('.ctu-updated')).toHaveText(/updated/)
-  expect(await widget.evaluate((el) => getComputedStyle(el).fontFamily)).toBe('cursive')
+  expect(await widget.evaluate((el) => getComputedStyle(el).fontFamily)).toBe('fantasy')
 })
 
 test('Copilot shows no usage anywhere, so it gets no box', async ({ context }) => {
