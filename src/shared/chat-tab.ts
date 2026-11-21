@@ -1,13 +1,13 @@
 import type { InsertPromptRequest, InsertPromptResponse } from './messages'
 
-// Sends a prompt to the extension's script inside a claude.ai tab.
+// Sends a prompt to the extension's script inside an AI chat tab.
 //
 // Chrome only adds that script to pages that load after the extension is
-// installed, updated or reloaded. A claude.ai tab that was already open
+// installed, updated or reloaded. A chat tab that was already open
 // has none, and sending to it fails with "Could not establish connection.
 // Receiving end does not exist." Testers update often, so instead of
 // telling them to reload the tab, this adds the script to the tab itself
-// (chrome.scripting, limited to claude.ai by the manifest's host
+// (chrome.scripting, limited to the supported chat sites by the manifest's host
 // permissions) and tries once more.
 
 export type SendResult =
@@ -20,7 +20,7 @@ export function contentScriptFile(manifest: chrome.runtime.Manifest = chrome.run
 }
 
 /** Adds the content script to a tab that doesn't have it. False if Chrome
- * refuses (not a claude.ai page, or the tab is still loading). */
+ * refuses (not a supported chat site, or the tab is still loading). */
 export async function injectContentScript(tabId: number): Promise<boolean> {
   const file = contentScriptFile()
   if (!file) return false
@@ -33,7 +33,7 @@ export async function injectContentScript(tabId: number): Promise<boolean> {
   }
 }
 
-export async function sendToClaudeTab(tabId: number, request: InsertPromptRequest): Promise<SendResult> {
+export async function sendToChatTab(tabId: number, request: InsertPromptRequest): Promise<SendResult> {
   try {
     return { ok: true, response: await chrome.tabs.sendMessage<InsertPromptRequest, InsertPromptResponse>(tabId, request) }
   } catch {

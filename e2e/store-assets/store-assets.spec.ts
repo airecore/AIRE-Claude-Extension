@@ -116,7 +116,7 @@ test('store screenshots and promo tile', async ({ context }) => {
   await importShowcase(personal)
   await compose(context, await personal.screenshot(), '1-your-prompts.png', 'Your prompt library',
     'Your best prompts, one click away.',
-    'Save prompts and skills as buttons, sorted into tabs. Click one and it is typed into Claude for you to review. Nothing is ever sent automatically.')
+    'Save prompts and skills as buttons, sorted into tabs. Click one and it is typed into Claude, ChatGPT, Copilot or Gemini for you to review. Nothing is ever sent automatically.')
 
   // 2. Team prompts (member view of shared tabs).
   // Same browser profile as scene 1, so the demo buttons are already there.
@@ -153,7 +153,7 @@ test('store screenshots and promo tile', async ({ context }) => {
     font-family:-apple-system,'Segoe UI',system-ui,Roboto,Arial,sans-serif;display:flex;flex-direction:column;justify-content:center">
     <img src="data:image/png;base64,${ICON}" width="56" height="56" style="border-radius:14px;margin-bottom:18px">
     <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;line-height:1.05">AI Ready Tools Extension</div>
-    <div style="font-size:16px;color:#bdb6ac;margin-top:10px;line-height:1.4">Saved prompts and team prompt sharing<br>for claude.ai</div>
+    <div style="font-size:16px;color:#bdb6ac;margin-top:10px;line-height:1.4">Saved prompts and team prompt sharing<br>for Claude, ChatGPT, Copilot and Gemini</div>
   </body></html>`)
   await tile.screenshot({ path: join(OUT, 'promo-tile-440x280.png') })
 })

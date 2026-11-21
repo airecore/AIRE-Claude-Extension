@@ -1,8 +1,14 @@
 # AI Ready Tools Extension
 
-Saved prompts for [claude.ai](https://claude.ai), one click away in a
-sidebar. Clicking a button types the prompt into Claude's chat box for
-you to check. **Nothing is ever sent automatically.**
+Saved prompts for [Claude](https://claude.ai), [ChatGPT](https://chatgpt.com),
+[Microsoft Copilot](https://copilot.microsoft.com) and
+[Google Gemini](https://gemini.google.com), one click away in a sidebar.
+Clicking a button types the prompt into that site's chat box for you to
+check. **Nothing is ever sent automatically.**
+
+The usage rings (how much of your limit you have used) are Claude only.
+No API keys or extra accounts are needed: the extension works inside the
+sites you already sign in to.
 
 ## For testers
 
@@ -33,8 +39,8 @@ from it.
 
 ### 2. Sign in
 
-1. Open [claude.ai](https://claude.ai) and click the **AIRE** icon in the
-   toolbar. The sidebar opens.
+1. Open Claude, ChatGPT, Copilot or Gemini and click the **AIRE** icon in
+   the toolbar. The sidebar opens.
 2. Click **⚙ Settings** → **Sign in**, and use your work email.
 
 Please stay signed in while testing, so any problems you hit are sent to
@@ -43,7 +49,7 @@ the team automatically.
 ### 3. Try everything
 
 - **+ Add prompt** to make a button, then click it to put the prompt into
-  Claude's chat box.
+  the chat box. Try it in Claude, ChatGPT, Copilot and Gemini.
 - Edit, delete and drag buttons to reorder them; make tabs; try
   **Sort by most used**.
 - Settings → **Export prompts** and **Import prompts**.
@@ -59,7 +65,7 @@ what you expected and what happened. Leave **Attach my recent activity**
 ticked, as it helps us find the cause.
 
 Errors are also reported automatically. The tester build never sends your
-prompts, buttons or Claude conversations.
+prompts, buttons or AI conversations.
 
 ### 5. Getting a new version
 
@@ -69,18 +75,21 @@ When you're told there's an update:
    and unzip it.
 2. Replace your old folder with the new one, in the same place.
 3. In `chrome://extensions`, click the **reload** icon on AIRE's card,
-   then reload your claude.ai tab.
+   then reload your AI chat tabs.
 
 Your buttons are kept. (Removing the extension from Chrome would delete
 them, so use reload instead.)
 
 ### If something isn't working
 
-- **"Reload the Claude tab and try again"**: reload the claude.ai tab.
+- **"Reload the page and try again"**: reload the chat page.
   This happens to tabs that were open before the extension was installed
   or updated.
-- **"Couldn't find Claude's chat box"**: open a normal Claude chat (not
-  Settings or Projects) and try again.
+- **"Couldn't find …'s chat box"**: open a normal chat on that site (not
+  its settings or projects pages) and try again. If it keeps happening,
+  report it: the site may have changed its layout.
+- **"Open Claude, ChatGPT, Copilot or Gemini to use this prompt"**: the
+  tab in front isn't one of those sites. Switch to one and click again.
 - **Sign-in fails**: your buttons still work without it. Report it from
   Settings → **Send feedback or report a problem**, or tell the team.
 
@@ -151,8 +160,8 @@ Then in Chrome:
 3. Click **Load unpacked**
 4. Select the **`dist/`** folder (not the repo root)
 
-Open a claude.ai tab and click the extension's toolbar icon to open the
-sidebar.
+Open a Claude, ChatGPT, Copilot or Gemini tab and click the extension's
+toolbar icon to open the sidebar.
 
 **Getting the latest version** (no need to clone again): in the same
 folder, run
@@ -163,7 +172,7 @@ pnpm run update
 
 It pulls the latest code, installs any new packages and rebuilds `dist/`.
 Then click the reload icon on the extension's card in
-`chrome://extensions` and reload the claude.ai tab. Chrome keeps loading
+`chrome://extensions` and reload the chat tab. Chrome keeps loading
 the same `dist/` folder, so your buttons and sign-in are kept.
 
 Organisation sign-in uses the shared live backend; nothing needs
@@ -182,7 +191,7 @@ configuring.
 
 Personal buttons keep working either way.
 
-- **"Reload the Claude tab and try again"** — reload the claude.ai tab.
+- **"Reload the page and try again"** — reload the chat tab.
   The extension only connects to tabs opened after it was loaded or
   reloaded.
 - **`redirect_uri_mismatch`, or the sign-in page shows a 404** — the
@@ -276,9 +285,11 @@ secret key live only in Vercel environment variables. There is no `.env` file to
 - **Add a button:** sidebar → **+ Add prompt** → choose **Prompt** or
   **Skill** → enter a name and the text to insert. For a skill, the text
   is the slash command itself (e.g. `/doc-summary`); claude.ai's own
-  autocomplete takes over after insertion.
-- **Run a button:** click its name. The text is typed into claude.ai's
-  chat box and nothing else happens. You press Send.
+  autocomplete takes over after insertion. Skills are a Claude feature;
+  on the other sites the text is typed in as it is.
+- **Run a button:** click its name. The text is typed into the chat box
+  of the site in front (Claude, ChatGPT, Copilot or Gemini) and nothing
+  else happens. You press Send.
 - **Reorder:** drag a row by its handle, or focus it and use Arrow
   Up/Down.
 - **Tabs:** sort buttons into tabs (Writing, Code, …).
@@ -356,8 +367,8 @@ What it collects, only while the tester is **signed in**:
   caught failure that way), plus uncaught errors and unhandled promise
   rejections. Each one includes the message, stack trace, build label and
   browser version. The content script only reports its own errors, never
-  claude.ai's, and reports "couldn't find Claude's chat box" as a named
-  `insert_input_not_found` defect.
+  the site's, and reports "couldn't find …'s chat box" as a named
+  `insert_input_not_found` defect tagged with the site.
 - **Feature usage.** A fixed list of events (button run and sent, tab
   created, import, sign-in, admin actions…) with a few plain props such as
   the button type. The list is in `src/shared/qa/events.ts`.
@@ -365,7 +376,7 @@ What it collects, only while the tester is **signed in**:
   a description and, if ticked, the tester's own last 40 events from the
   past 24 hours.
 
-It never collects prompt text, button contents or anything from a Claude
+It never collects prompt text, button contents or anything from an AI
 conversation, and console arguments that are objects are recorded only as
 `[object]`.
 
@@ -439,11 +450,17 @@ pnpm.
 
 ### Architecture
 
+- **`src/shared/sites.ts`** — the supported sites (Claude, ChatGPT,
+  Copilot, Gemini) and their addresses. It drives the manifest's host
+  permissions, where the content script runs and where the side panel
+  is offered.
 - **`src/background/service-worker.ts`** — enables the side panel on
-  claude.ai tabs.
-- **`src/content/`** — runs on claude.ai. `claude-adapter.ts` finds the
-  chat box and inserts text (never sends); `usage-widget.ts` draws the
-  usage rings; `content-script.ts` handles messages from the sidebar and
+  those sites' tabs.
+- **`src/content/`** — runs on those sites. `site-inputs.ts` is the
+  content script's copy of the site list with each site's chat-box
+  markers (a test keeps it matched to `sites.ts`); `claude-adapter.ts`
+  finds the chat box and inserts text (never sends); `usage-widget.ts`
+  draws the usage rings (Claude only); `content-script.ts` handles messages from the sidebar and
   detects when an inserted prompt is actually sent (for analytics).
 - **`src/sidepanel/`** — the sidebar UI (plain TypeScript + DOM).
   `render.ts` builds the page for the current state; `main.ts` is the
@@ -466,8 +483,9 @@ pnpm.
   Chromium with Playwright: button management, tabs, keyboard reorder,
   export/import, the admin, member, join-request and invite views
   (against a mocked backend), and prompt insertion and send detection
-  using the exact compiled content script on a local copy of claude.ai's
-  chat box.
+  on each site (`e2e/chat-sites.spec.ts`: local copies of the Claude,
+  ChatGPT, Copilot and Gemini chat boxes served at their real addresses,
+  so Chrome itself injects the real content script).
 
   ```bash
   pnpm run build          # e2e loads dist/
@@ -479,7 +497,8 @@ pnpm.
   cannot run headless).
 - **Manual live check:** [`docs/qa-checklist.md`](docs/qa-checklist.md)
   covers what automated tests cannot reach: real Clerk sign-in, the live
-  backend and the real claude.ai page. Run it before each release.
+  backend and the real Claude, ChatGPT, Copilot and Gemini pages. Run it
+  before each release.
 - **CI** (`.github/workflows/ci.yml`) runs typecheck, all tests, the
   build and the e2e suite on every push and pull request to `main`.
   `.github/workflows/tester-build.yml` then publishes the tester zip to
@@ -499,10 +518,14 @@ justifications, data-use answers, assets) is in
 
 ## Known limitations
 
-- **One claude.ai selector.** Insertion and the usage rings depend on
-  claude.ai's chat box keeping `data-testid="chat-input"`. If claude.ai
-  changes it, the extension shows a "couldn't find Claude's chat box"
-  error and needs a code update.
+- **Each site's chat box can change.** Insertion depends on the markers
+  in `src/content/site-inputs.ts` (several per site, plus general
+  fallbacks). If a site redesigns its chat box beyond all of them, the
+  extension shows "couldn't find …'s chat box" and needs a code update.
+- **Adding a site** means an entry in `src/shared/sites.ts` and
+  `src/content/site-inputs.ts`, and a case in `e2e/chat-sites.spec.ts`.
+- **Usage rings and admin usage reporting are Claude only.** The other
+  sites don't expose usage limits the same way.
 - **Demo font.** The bundled Alfabet font files are a demo licence with
   most punctuation removed (system font is used for those characters).
   Replace them with the licensed files before the public release.
@@ -555,5 +578,5 @@ Store.
 7. Fill in the listing from `CHROMEWEBSTORE.md`, choose the visibility,
    and **submit for review** (usually a few days).
 8. Once approved, share the store link with the team. Each person
-   installs it, opens claude.ai, and signs in with their work email to
+   installs it, opens Claude, ChatGPT, Copilot or Gemini, and signs in with their work email to
    join the organisation.

@@ -1,8 +1,9 @@
 # Manual QA checklist
 
 The automated tests (unit + `e2e/`) cover the extension against mocks and a
-local copy of claude.ai's chat box. This pass checks the parts they cannot:
-the real claude.ai page, real Clerk sign-in and the live backend. Run it in a real Chrome before handing a build to testers, and
+local copy of each site's chat box. This pass checks the parts they cannot:
+the real Claude, ChatGPT, Copilot and Gemini pages, real Clerk sign-in and
+the live backend. Run it in a real Chrome before handing a build to testers, and
 again after any change to `src/content/`, `src/sidepanel/`, or the
 manifest.
 
@@ -39,6 +40,23 @@ open a fresh claude.ai tab.
 - [ ] Tab ⋯ → Move left / Move right, Open this tab first, Delete tab; the last tab cannot be deleted.
 - [ ] Reorder tabs by drag.
 - [ ] "Most used" toggle sorts by personal run count.
+
+## 2b. Other AI sites
+
+Do each of these signed in to the site, on a normal new chat:
+
+- [ ] **ChatGPT** (chatgpt.com): panel opens from the toolbar icon; clicking a
+      prompt types it into the chat box, nothing is sent; pressing Send counts
+      the run (Sort by most used goes up).
+- [ ] **Copilot** (copilot.microsoft.com or copilot.com): same three checks.
+- [ ] **Microsoft 365 Copilot** (m365.cloud.microsoft/chat), if the company
+      uses it: same three checks.
+- [ ] **Gemini** (gemini.google.com): same three checks.
+- [ ] Multi-line prompt keeps its line breaks on each site.
+- [ ] No usage rings appear on ChatGPT, Copilot or Gemini.
+- [ ] On any other website, clicking a prompt shows "Open Claude, ChatGPT,
+      Copilot or Gemini to use this prompt."
+- [ ] A team prompt runs on each site too.
 
 ## 3. Backup
 

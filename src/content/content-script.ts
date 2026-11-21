@@ -3,9 +3,10 @@ import { initUsageWidget, refreshWidget } from './usage-widget'
 import { fetchUsage } from './usage-client'
 import type { GetUsageRequest, InsertPromptRequest, PromptSentMessage } from '../shared/messages'
 import { installContentQaCapture, qaContentDefect } from './qa-report'
+import { contentSiteForHost as siteForHost } from './site-inputs'
 
-// The side panel adds this script to an already-open claude.ai tab when it
-// can't reach one (src/shared/claude-tab.ts). If a live copy is already
+// The side panel adds this script to an already-open chat tab when it
+// can't reach one (src/shared/chat-tab.ts). If a live copy is already
 // running in this tab, don't set up a second one -- two copies would type
 // every prompt twice. A copy left over from before the extension was
 // reloaded is dead (its chrome.runtime is gone), so it doesn't count.
@@ -30,14 +31,19 @@ if (!liveCopyRunning) {
 }
 
 function start(): void {
-  // Tester build: record this script's own errors (never claude.ai's).
+  // Tester build: record this script's own errors (never the site's own).
   installContentQaCapture()
 
   console.log('[Claude Tools] content script loaded on', window.location.href)
 
-  initUsageWidget().catch((error) => {
-    console.warn('[Claude Tools] usage box could not start', error)
-  })
+  // The usage rings read claude.ai's own usage numbers: Claude only.
+  const site = siteForHost(location.hostname)
+  const isClaude = !site || site.id === 'claude'
+  if (isClaude) {
+    initUsageWidget().catch((error) => {
+      console.warn('[Claude Tools] usage box could not start', error)
+    })
+  }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || (message as InsertPromptRequest).type !== 'INSERT_PROMPT') return undefined
@@ -45,14 +51,15 @@ function start(): void {
     insertPrompt(prompt)
       .then((response) => {
         sendResponse(response)
-        // The extension's most likely break: claude.ai changing its chat box.
+        // The extension's most likely break: a site changing its chat box.
         if (!response.ok) {
           qaContentDefect(`insert_${response.error}`, response.message, {
+            site: site?.id ?? 'unknown',
             page: pageKind(),
-            editables: document.querySelectorAll('[contenteditable="true"]').length,
+            editables: document.querySelectorAll('[contenteditable="true"], textarea').length,
           })
         }
-        void refreshWidget()
+        if (isClaude) void refreshWidget()
         if (response.ok && runToken) {
           watchForSend(() => {
             const sent: PromptSentMessage = { type: 'PROMPT_SENT', runToken }

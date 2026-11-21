@@ -3,10 +3,10 @@ import { test, expect, EXTENSION_ID } from './fixtures'
 // A claude.ai tab that was open BEFORE the extension was installed,
 // updated or reloaded has no content script, and the sidebar used to fail
 // with "Could not establish connection. Receiving end does not exist." The
-// sidebar now adds the script to the tab itself (src/shared/claude-tab.ts).
+// sidebar now adds the script to the tab itself (src/shared/chat-tab.ts).
 //
 // The test browser can't reload an extension, so the retry logic is
-// unit-tested (tests/shared/claude-tab.test.ts). This checks the real
+// unit-tested (tests/shared/chat-tab.test.ts). This checks the real
 // parts: Chrome accepts adding the manifest's content script file to a
 // claude.ai tab, and adding it to a tab that already has a live copy
 // doesn't make prompts type twice.

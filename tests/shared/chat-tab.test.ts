@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { contentScriptFile, sendToClaudeTab } from '../../src/shared/claude-tab'
+import { contentScriptFile, sendToChatTab } from '../../src/shared/chat-tab'
 
 const request = { type: 'INSERT_PROMPT' as const, prompt: 'Hi' }
 const unreachable = () => Promise.reject(new Error('Could not establish connection. Receiving end does not exist.'))
@@ -17,12 +17,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('sendToClaudeTab', () => {
+describe('sendToChatTab', () => {
   it('sends straight away when the tab already has the content script', async () => {
     const sendMessage = vi.fn().mockResolvedValue({ ok: true })
     const executeScript = vi.fn()
     fakeChrome(sendMessage, executeScript)
-    expect(await sendToClaudeTab(7, request)).toEqual({ ok: true, response: { ok: true } })
+    expect(await sendToChatTab(7, request)).toEqual({ ok: true, response: { ok: true } })
     expect(executeScript).not.toHaveBeenCalled()
   })
 
@@ -30,7 +30,7 @@ describe('sendToClaudeTab', () => {
     const sendMessage = vi.fn().mockImplementationOnce(unreachable).mockResolvedValueOnce({ ok: true })
     const executeScript = vi.fn().mockResolvedValue([])
     fakeChrome(sendMessage, executeScript)
-    expect(await sendToClaudeTab(7, request)).toEqual({ ok: true, response: { ok: true } })
+    expect(await sendToChatTab(7, request)).toEqual({ ok: true, response: { ok: true } })
     expect(executeScript).toHaveBeenCalledWith({ target: { tabId: 7 }, files: ['assets/content-script.js'] })
     expect(sendMessage).toHaveBeenCalledTimes(2)
   })
@@ -40,7 +40,7 @@ describe('sendToClaudeTab', () => {
     const sendMessage = vi.fn().mockImplementation(unreachable)
     const executeScript = vi.fn().mockRejectedValue(new Error('Cannot access contents of the page'))
     fakeChrome(sendMessage, executeScript)
-    expect(await sendToClaudeTab(7, request)).toEqual({ ok: false, reason: 'unreachable' })
+    expect(await sendToChatTab(7, request)).toEqual({ ok: false, reason: 'unreachable' })
     expect(sendMessage).toHaveBeenCalledTimes(1)
   })
 
@@ -48,7 +48,7 @@ describe('sendToClaudeTab', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const sendMessage = vi.fn().mockImplementation(unreachable)
     fakeChrome(sendMessage, vi.fn().mockResolvedValue([]))
-    expect(await sendToClaudeTab(7, request)).toEqual({ ok: false, reason: 'unreachable' })
+    expect(await sendToChatTab(7, request)).toEqual({ ok: false, reason: 'unreachable' })
   })
 })
 

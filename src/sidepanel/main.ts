@@ -3,7 +3,11 @@ import { QA_ENABLED, buildLabel } from '../shared/qa/config'
 import { sendFeedback, type FeedbackInput } from '../shared/qa/feedback'
 import type { FeedbackState } from './FeedbackForm'
 import { ToolService } from '../shared/tool-service'
-import { sendToClaudeTab } from '../shared/claude-tab'
+import { sendToChatTab } from '../shared/chat-tab'
+import { SITE_NAMES_TEXT, siteForUrl } from '../shared/sites'
+
+const OPEN_A_CHAT_SITE = `Open ${SITE_NAMES_TEXT} to use this prompt.`
+const RELOAD_THE_PAGE = 'Reload the page and try again.'
 import { ChromeLocalStorageAdapter } from '../shared/storage/chrome-local-adapter'
 import { ClerkAuthAdapter } from '../shared/auth/clerk-auth-adapter'
 import type { ProviderId } from '../shared/auth/providers'
@@ -399,10 +403,10 @@ async function refresh(root: HTMLElement): Promise<void> {
 
         try {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-          if (!tab?.id || !tab.url) {
-            console.warn('[Claude Tools] no active claude.ai tab to run against')
-            runState.set(button.id, { isRunning: false, error: 'Open claude.ai to use this prompt.' })
-            announce('Open claude.ai to use this prompt.')
+          if (!tab?.id || !siteForUrl(tab.url)) {
+            console.warn('[Claude Tools] the active tab is not a supported chat site')
+            runState.set(button.id, { isRunning: false, error: OPEN_A_CHAT_SITE })
+            announce(OPEN_A_CHAT_SITE)
             if (view.mode === 'list') await refresh(root)
             return
           }
@@ -413,10 +417,10 @@ async function refresh(root: HTMLElement): Promise<void> {
             prompt: button.prompt,
             runToken,
           }
-          const sent = await sendToClaudeTab(tab.id, request)
+          const sent = await sendToChatTab(tab.id, request)
           if (!sent.ok) {
-            runState.set(button.id, { isRunning: false, error: 'Reload the Claude tab and try again.' })
-            announce('Reload the Claude tab and try again.')
+            runState.set(button.id, { isRunning: false, error: RELOAD_THE_PAGE })
+            announce(RELOAD_THE_PAGE)
             if (view.mode === 'list') await refresh(root)
             return
           }
@@ -1071,8 +1075,8 @@ async function refresh(root: HTMLElement): Promise<void> {
         try {
           try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-            if (!tab?.id || !tab.url) {
-              fail('Open claude.ai to use this prompt.')
+            if (!tab?.id || !siteForUrl(tab.url)) {
+              fail(OPEN_A_CHAT_SITE)
               return
             }
             const runToken = crypto.randomUUID()
@@ -1081,9 +1085,9 @@ async function refresh(root: HTMLElement): Promise<void> {
               prompt: prompt.promptText,
               runToken,
             }
-            const sent = await sendToClaudeTab(tab.id, request)
+            const sent = await sendToChatTab(tab.id, request)
             if (!sent.ok) {
-              fail('Reload the Claude tab and try again.')
+              fail(RELOAD_THE_PAGE)
               return
             }
             const response = sent.response

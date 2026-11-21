@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './src/shared/api-base'
 import { CLERK_DOMAIN } from './src/shared/auth/providers'
+import { siteMatchPatterns } from './src/shared/sites'
 
 // `pnpm run build:store` sets this. The Chrome Web Store assigns its own
 // extension ID and rejects a package carrying `key`, so the store build
@@ -40,7 +41,7 @@ const manifest: ExtensionManifest = {
   manifest_version: 3,
   name: 'AI Ready Tools Extension',
   version: '1.0.0',
-  description: 'Saved prompts and skills for claude.ai in a sidebar, plus optional team prompt sharing. Nothing is sent automatically.',
+  description: 'Saved prompts for Claude, ChatGPT, Copilot and Gemini in a sidebar, plus optional team sharing. Nothing is sent automatically.',
   key: STORE_BUILD ? undefined : 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5XVB/dXgxQE8jwyqw4Rpvz/OscKGE/KeOplSBusI8gn+2mqrdh9Pq0i+HIop95bsz/KbMml+uCvgJMLVgstHlO3TxGc1E5T5u13kL/g0CoZDd5khfx2SSJVAwSWoNs3ttZT72xJ3p6TgeJbj4++b1ECTEmU41DxEvChJcdsGk91La7wZg+9Flaqv0Eh2J/qCj/1eGcmLIBNv9BfuLRw1L3MGZSN/jJFEAnSFnIcKGtdz86/EexjTcctx4RTQf7b1LQeaaz93qjZ7mCzDBC7XfHnzkJI38qaScfSd6StGRiiaE1FoWxpVMrDRLSqte7V72Eio/TiaRNHp31kcnQ4l1wIDAQAB',
   icons: {
     '16': 'src/icons/icon-16.png',
@@ -48,11 +49,12 @@ const manifest: ExtensionManifest = {
     '48': 'src/icons/icon-48.png',
     '128': 'src/icons/icon-128.png',
   },
-  // scripting: re-adds the content script to a claude.ai tab that was open
-  // before the extension was installed or updated (src/shared/claude-tab.ts).
+  // scripting: re-adds the content script to a chat tab that was open
+  // before the extension was installed or updated (src/shared/chat-tab.ts).
   permissions: ['sidePanel', 'storage', 'identity', 'scripting'],
   host_permissions: [
-    'https://claude.ai/*',
+    // The AI chat sites (src/shared/sites.ts).
+    ...siteMatchPatterns(),
     // Backend and Clerk hosts come from the same constants the code uses,
     // so switching to production is an edit to those two files only.
     `${API_BASE_URL}/*`,
@@ -64,7 +66,7 @@ const manifest: ExtensionManifest = {
   },
   content_scripts: [
     {
-      matches: ['https://claude.ai/*'],
+      matches: siteMatchPatterns(),
       js: ['src/content/content-script.ts'],
     },
   ],

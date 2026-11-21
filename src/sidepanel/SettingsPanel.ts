@@ -37,8 +37,9 @@ const PRODUCT_NAME = 'AI Ready Tools Extension'
 // Short in-panel guide. It covers the main tasks, so the extension does not
 // need a separate help page.
 const HELP_STEPS = [
-  'Open a chat on claude.ai, then click the extension icon in the toolbar to open this panel.',
-  "Click a prompt to type it into Claude's chat box. Check it, then press Send. The extension never sends a message for you.",
+  'Open a chat in Claude, ChatGPT, Copilot or Gemini, then click the extension icon in the toolbar to open this panel.',
+  'Click a prompt to type it into the chat box. Check it, then press Send. The extension never sends a message for you.',
+  'Skills (prompts starting with /) are a Claude feature. On other sites they are typed in as plain text.',
   'Click Add prompt to choose from the AIRE library or to write your own.',
   'Click + New to add a tab. Double-click a tab to rename it. Use the ⋯ menu to move or delete it.',
   'Use Export prompts to keep a backup of your prompts.',
@@ -262,7 +263,7 @@ function renderAbout(): HTMLElement {
     el(
       'p',
       'settings-hint',
-      'Saved prompts and skills for claude.ai, one click away. Your prompts are stored in this browser.',
+      'Saved prompts for Claude, ChatGPT, Copilot and Gemini, one click away. Your prompts are stored in this browser.',
     ),
   )
   const by = el('p', 'settings-hint')
