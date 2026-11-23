@@ -72,3 +72,16 @@ export const CHAT_SITES: readonly ChatSite[] = [
 export function contentSiteForHost(hostname: string): ChatSite | null {
   return CHAT_SITES.find((site) => site.hosts.includes(hostname)) ?? null
 }
+
+/** Copy of CHAT_ONLY_PATHS in src/shared/sites.ts (see the note at the top
+ * of this file); tests/shared/sites.test.ts keeps them equal. */
+export const CHAT_ONLY_PATHS: Readonly<Record<string, string>> = {
+  'm365.cloud.microsoft': '/chat',
+}
+
+/** Whether the current page is a chat. On the Microsoft 365 hub only
+ * /chat is: prompts must never be typed into some other page's box. */
+export function isChatPage(hostname: string = location.hostname, pathname: string = location.pathname): boolean {
+  const prefix = CHAT_ONLY_PATHS[hostname]
+  return !prefix || pathname === prefix || pathname.startsWith(`${prefix}/`)
+}

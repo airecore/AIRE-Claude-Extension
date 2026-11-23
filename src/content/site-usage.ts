@@ -52,22 +52,36 @@ async function fetchChatGptUsage(): Promise<FetchUsageResult> {
 
 const GEMINI_KEY = 'aire.geminiUsage'
 
+/** Saved numbers are kept per Google account (/u/1/... is a second one),
+ * so one account's usage is never shown or reported for another. The
+ * first account keeps the original key. */
+function geminiKey(pathname: string = location.pathname): string {
+  const account = /^\/u\/(\d+)/.exec(pathname)?.[1]
+  return account && account !== '0' ? `${GEMINI_KEY}.u${account}` : GEMINI_KEY
+}
+
 /** On Gemini's Usage page, reads its usage windows and keeps them. */
+/** Saves the numbers shown on Gemini's Usage page. True only when they
+ * differ from what was already saved, so an unchanged page doesn't make
+ * the usage box redraw (and re-check) over and over. */
 export async function captureGeminiUsage(): Promise<boolean> {
-  if (location.pathname !== '/usage') return false
+  if (!/^(\/u\/\d+)?\/usage\/?$/.test(location.pathname)) return false
   const list = document.querySelector('[aria-label="Usage windows"]')
   if (!list) return false
   const meters = Array.from(list.querySelectorAll('li'))
     .map((item) => parseGeminiUsageItem((item as HTMLElement).innerText))
     .filter((meter): meter is UsageMeter => meter !== null)
   if (meters.length === 0) return false
-  await chrome.storage.local.set({ [GEMINI_KEY]: { meters, savedAt: Date.now() } })
-  return true
+  const previous = (await chrome.storage.local.get(geminiKey()))[geminiKey()] as { meters: UsageMeter[] } | undefined
+  const changed = JSON.stringify(previous?.meters) !== JSON.stringify(meters)
+  // Always refresh the time, so "updated" stays truthful.
+  await chrome.storage.local.set({ [geminiKey()]: { meters, savedAt: Date.now() } })
+  return changed
 }
 
 async function fetchGeminiUsage(): Promise<FetchUsageResult> {
   await captureGeminiUsage()
-  const saved = (await chrome.storage.local.get(GEMINI_KEY))[GEMINI_KEY] as
+  const saved = (await chrome.storage.local.get(geminiKey()))[geminiKey()] as
     | { meters: UsageMeter[]; savedAt: number }
     | undefined
   if (!saved || saved.meters.length === 0) return { ok: false }

@@ -67,6 +67,8 @@ chrome.runtime.onStartup.addListener(() => {
 })
 
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'loading') return
+  // A full load, or a single-page-app move (e.g. Microsoft 365 going from
+  // /chat to its home page), which changes the URL without loading.
+  if (changeInfo.status !== 'loading' && changeInfo.url === undefined) return
   updateSidePanelForTab(tab)
 })

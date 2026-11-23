@@ -49,7 +49,23 @@ export function siteForUrl(url: string | undefined | null): ChatSite | null {
     return null
   }
   if (parsed.protocol !== 'https:') return null
+  if (!isChatPath(parsed.hostname, parsed.pathname)) return null
   return siteForHost(parsed.hostname)
+}
+
+/**
+ * Hosts that serve much more than chat: only these paths are the chat.
+ * m365.cloud.microsoft is the whole Microsoft 365 web hub; Copilot is at
+ * /chat. Keep in step with CHAT_ONLY_PATHS in src/content/site-inputs.ts.
+ */
+export const CHAT_ONLY_PATHS: Readonly<Record<string, string>> = {
+  'm365.cloud.microsoft': '/chat',
+}
+
+/** Whether this page of a supported host is its chat. */
+export function isChatPath(hostname: string, pathname: string): boolean {
+  const prefix = CHAT_ONLY_PATHS[hostname]
+  return !prefix || pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
 
 export function siteForHost(hostname: string): ChatSite | null {

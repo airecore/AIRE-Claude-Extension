@@ -33,12 +33,12 @@
 <main>
   <p class="eyebrow">AI Ready Tools Extension</p>
   <h1>Privacy Policy</h1>
-  <p class="muted">Last updated: 21 November 2026</p>
+  <p class="muted">Last updated: 23 November 2026</p>
 
   <p>The AI Ready Tools Extension adds a sidebar of saved prompts to Claude, ChatGPT, Microsoft Copilot and Google Gemini. Clicking one types it into that site's chat box for you to review; the extension never sends a message on your behalf. This page explains exactly what data the extension handles.</p>
 
   <h2>If you never sign in</h2>
-  <p>Your buttons, tabs, and settings are stored only in your browser. Nothing is sent to us or anyone else. The usage box shown on Claude, ChatGPT and Gemini is read from your own account on that site (Gemini's from its Usage page when you open it) and displayed locally; they are not sent anywhere while you are signed out.</p>
+  <p>Your buttons, tabs, and settings are stored only in your browser. Nothing is sent to us or anyone else. The usage box shown on Claude, ChatGPT and Gemini is read from your own account on that site (Gemini's from its Usage page when you open it) and displayed locally; they are not sent anywhere while you are signed out. To read ChatGPT's usage, the extension asks ChatGPT for your own signed-in session, from your browser, the same way ChatGPT's own page does; that session never leaves your browser and is not stored. Gemini's numbers are kept in your browser, separately for each Google account, so the usage box can show them on other Gemini pages; they are replaced each time you open Gemini's Usage page.</p>
 
   <h2>If you sign in to use an organisation</h2>
   <p>Signing in is optional and only needed for shared team prompts. When you sign in and are a member of an organisation, the following is stored on our servers:</p>
@@ -83,7 +83,8 @@
   <h2>Permissions the extension asks for</h2>
   <ul>
     <li><strong>Access to claude.ai</strong>: to type your prompts into the chat box and show your usage.</li>
-    <li><strong>Access to ChatGPT, Copilot and Gemini</strong>: to type your prompts into their chat boxes when you click a prompt, and on ChatGPT and Gemini to show your usage.</li>
+    <li><strong>Access to ChatGPT (chatgpt.com, chat.openai.com), Copilot (copilot.microsoft.com, copilot.com, copilot.cloud.microsoft and Microsoft 365 at m365.cloud.microsoft) and Gemini (gemini.google.com)</strong>: to type your prompts into their chat boxes when you click a prompt, and on ChatGPT and Gemini to show your usage. On Microsoft 365 the sidebar only works on Copilot's chat (m365.cloud.microsoft/chat); nothing is typed or read on its other pages.</li>
+    <li><strong>Scripting</strong>: if a chat tab was already open before the extension was installed or updated, to load the extension's own script into that tab when you click a prompt, instead of asking you to reload the page.</li>
     <li><strong>Storage</strong>: to keep your buttons and settings in your browser.</li>
     <li><strong>Side panel</strong>: to show the sidebar.</li>
     <li><strong>Identity</strong>: to open the optional sign-in window.</li>

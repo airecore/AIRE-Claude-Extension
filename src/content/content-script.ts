@@ -2,6 +2,8 @@ import { insertPrompt, watchForSend, pageKind } from './claude-adapter'
 import { initUsageWidget, refreshWidget, siteUsage } from './usage-widget'
 import type { GetUsageRequest, InsertPromptRequest, PromptSentMessage } from '../shared/messages'
 import { installContentQaCapture, qaContentDefect } from './qa-report'
+
+const STALE_USAGE_MS = 60 * 60 * 1000
 import { contentSiteForHost as siteForHost } from './site-inputs'
 
 // The side panel adds this script to an already-open chat tab when it
@@ -85,7 +87,13 @@ function start(): void {
     }
     usage
       .fetch()
-      .then((result) => sendResponse(result.ok ? { ok: true, usage: result.usage, site: site?.id ?? 'claude' } : result))
+      .then((result) => {
+        // Kept numbers (Gemini) older than an hour aren't sent to the
+        // organisation: the server stamps reports "updated now", so old
+        // numbers would look current to admins.
+        const stale = result.ok && result.savedAt !== undefined && Date.now() - result.savedAt > STALE_USAGE_MS
+        sendResponse(result.ok && !stale ? { ok: true, usage: result.usage, site: site?.id ?? 'claude' } : { ok: false })
+      })
       .catch((error) => {
         console.error('[Claude Tools] unexpected error during fetchUsage', error)
         sendResponse({ ok: false })

@@ -43,7 +43,7 @@ export async function reportUsage(idToken: string, snapshot: UsageSnapshot, site
     })
     return response.ok
   } catch (error) {
-    console.error('[Claude Tools] failed to report usage', error)
+    console.warn('[Claude Tools] usage report not sent (offline?)', error)
     return false
   }
 }
@@ -98,7 +98,7 @@ export async function fetchOrgUsage(idToken: string): Promise<OrgUsageSnapshot[]
       headers: { Authorization: `Bearer ${idToken}` },
     })
   } catch (error) {
-    console.error('[Claude Tools] failed to fetch org usage', error)
+    console.warn('[Claude Tools] org usage not loaded (offline?)', error)
     return null
   }
   if (!response.ok) {

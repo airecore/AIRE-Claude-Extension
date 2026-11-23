@@ -225,3 +225,26 @@ test('the shared prompt form keeps everything typed when the panel redraws in th
   await form.getByRole('button', { name: 'Add prompt', exact: true }).click()
   expect((await created).postDataJSON()).toMatchObject({ name: 'Weekly summary', promptText: 'Summarise this week.' })
 })
+
+test('a failed save keeps the shared prompt form filled in', async ({ context }) => {
+  const page = await openMockedSidepanel(context, {
+    email: 'director@acme.test',
+    orgSession: { state: 'active', org: { id: 'org-1', name: 'Acme Inc' }, role: 'director' },
+    orgPrompts: { org: { name: 'Acme Inc' }, tabs: [{ id: 'tab-1', name: 'General', emoji: null, sort_order: 0 }], prompts: [] },
+    members: [{ email: 'director@acme.test', role: 'director', status: 'active', createdAt: new Date().toISOString() }],
+  })
+  await page.route('**/api/org-prompts', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 500 }) : route.fallback(),
+  )
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Manage Organisation' }).click()
+  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add prompt', exact: true }) })
+  await form.getByLabel('Name').fill('Keep me')
+  await form.getByLabel('Prompt text').fill('Still here after a failed save')
+  await form.getByRole('button', { name: 'Add prompt', exact: true }).click()
+
+  await expect(page.getByText(/Something went wrong adding that prompt/)).toBeVisible()
+  await expect(form.getByLabel('Name')).toHaveValue('Keep me')
+  await expect(form.getByLabel('Prompt text')).toHaveValue('Still here after a failed save')
+})

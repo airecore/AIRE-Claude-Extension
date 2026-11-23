@@ -74,7 +74,7 @@ licensed font is swapped in.
 | `scripting` | permissions | When the user clicks a prompt button in a supported chat tab that was already open before the extension was installed or updated, Chrome has not yet loaded the extension's own script into that tab. This permission lets the extension load that same script (the one its manifest already runs on those sites) so the prompt can be typed, instead of asking the user to reload the page. It only runs on the supported chat sites, after the user clicks a button. |
 | `https://claude.ai/*` | host_permissions | Types the user's chosen prompt into Claude's chat box when they click a button, and shows the user's own Claude usage levels in Claude's sidebar. |
 | `https://chatgpt.com/*`, `https://chat.openai.com/*` | host_permissions | Types the user's chosen prompt into ChatGPT's chat box when they click a button, and shows the user's own ChatGPT usage (uses left per feature) in ChatGPT's sidebar. |
-| `https://copilot.microsoft.com/*`, `https://copilot.com/*`, `https://copilot.cloud.microsoft/*`, `https://m365.cloud.microsoft/*` | host_permissions | Types the user's chosen prompt into Microsoft Copilot's chat box (consumer and Microsoft 365) when they click a button. Nothing else is read or changed. |
+| `https://copilot.microsoft.com/*`, `https://copilot.com/*`, `https://copilot.cloud.microsoft/*`, `https://m365.cloud.microsoft/*` | host_permissions | Types the user's chosen prompt into Microsoft Copilot's chat box (consumer and Microsoft 365) when they click a button. On `m365.cloud.microsoft`, the Microsoft 365 web hub, the side panel and typing are limited to Copilot's chat at `/chat`; the extension's script loads on the hub's other pages (Chrome can't match by path finely enough to exclude them) but finds no chat box there and does nothing. Nothing else is read or changed. |
 | `https://gemini.google.com/*` | host_permissions | Types the user's chosen prompt into Gemini's chat box when they click a button, and shows the user's own Gemini usage levels (read from Gemini's Usage page) in Gemini's sidebar. |
 | Backend URL (`API_BASE_URL`) | host_permissions | Our own server, used only for the optional team features: loading the organisation's shared prompts, membership, invites and admin analytics. |
 | Clerk sign-in host (`CLERK_DOMAIN`) | host_permissions | Our sign-in provider's token endpoint, called once when the user signs in to exchange the sign-in code for a session. |
@@ -92,7 +92,7 @@ licensed font is swapped in.
 | Personally identifiable info | Yes (email address) | Yes, when signed in | Identify the user, organisation membership, invites | Service providers only (Clerk, Vercel, Neon) |
 | Health info | No | | | |
 | Financial info | No | | | |
-| Authentication info | Yes (sign-in session token) | Stored locally; sent to our server to authenticate requests | Keep the user signed in | No |
+| Authentication info | Yes (sign-in session token; on ChatGPT, the user's own ChatGPT session is read in the browser) | Our session token: stored locally and sent to our server to authenticate requests. The ChatGPT session: used only in the browser to ask ChatGPT for the user's own usage, the same call ChatGPT's page makes; never stored or sent to us | Keep the user signed in; show ChatGPT usage | No |
 | Personal communications | No | | | |
 | Location | No (IP address used only for 1-day rate limiting) | | | |
 | Web history | No | | | |
@@ -141,7 +141,7 @@ extension ID, its Clerk redirect URI, then submit.
 
 ### Known Issues / Limitations
 - Depends on each site's chat box staying recognisable (markers listed in
-  `src/shared/sites.ts`); a site redesign could need an update.
+  `src/content/site-inputs.ts`); a site redesign could need an update.
 - Reviewers testing team features need a sign-in; personal buttons work
   without any account.
 

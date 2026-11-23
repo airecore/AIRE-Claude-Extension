@@ -10,6 +10,7 @@ describe('siteForUrl', () => {
     ['https://copilot.microsoft.com/', 'copilot'],
     ['https://copilot.com/chats/1', 'copilot'],
     ['https://m365.cloud.microsoft/chat', 'copilot'],
+    ['https://m365.cloud.microsoft/chat/conversation/1', 'copilot'],
     ['https://gemini.google.com/app', 'gemini'],
   ])('%s is %s', (url, id) => {
     expect(siteForUrl(url)?.id).toBe(id)
@@ -21,6 +22,10 @@ describe('siteForUrl', () => {
     'https://claude.ai.evil.com/',
     'http://claude.ai/',
     'chrome://extensions',
+    // The Microsoft 365 hub's other pages (home, search, apps) aren't chat.
+    'https://m365.cloud.microsoft/',
+    'https://m365.cloud.microsoft/search?q=x',
+    'https://m365.cloud.microsoft/chatbot-lookalike',
     'not a url',
     undefined,
   ])('%s is not a chat site', (url) => {
@@ -57,5 +62,21 @@ describe('content script copy of the site list', () => {
       CHAT_SITES.map(({ id, name, hosts }) => ({ id, name, hosts })),
     )
     for (const site of contentSites) expect(site.inputSelectors.length).toBeGreaterThan(0)
+  })
+})
+
+describe('chat-only paths', () => {
+  it('is the same list in the side panel and the content script', async () => {
+    const shared = await import('../../src/shared/sites')
+    const content = await import('../../src/content/site-inputs')
+    expect(content.CHAT_ONLY_PATHS).toEqual(shared.CHAT_ONLY_PATHS)
+  })
+
+  it('only treats Copilot\'s /chat as the chat on the Microsoft 365 hub', async () => {
+    const { isChatPage } = await import('../../src/content/site-inputs')
+    expect(isChatPage('m365.cloud.microsoft', '/chat')).toBe(true)
+    expect(isChatPage('m365.cloud.microsoft', '/')).toBe(false)
+    expect(isChatPage('m365.cloud.microsoft', '/chatbot')).toBe(false)
+    expect(isChatPage('claude.ai', '/anything')).toBe(true)
   })
 })

@@ -28,12 +28,12 @@ export async function fetchUsage(): Promise<FetchUsageResult> {
       credentials: 'include',
     })
   } catch (error) {
-    console.error('[Claude Tools] usage fetch failed', error)
+    console.warn('[Claude Tools] usage fetch failed', error)
     return { ok: false }
   }
 
   if (!response.ok) {
-    console.error('[Claude Tools] usage endpoint returned status', response.status)
+    console.warn('[Claude Tools] usage endpoint returned status', response.status)
     return { ok: false }
   }
 
@@ -41,7 +41,7 @@ export async function fetchUsage(): Promise<FetchUsageResult> {
   try {
     body = await response.json()
   } catch (error) {
-    console.error('[Claude Tools] usage response was not valid JSON', error)
+    console.warn('[Claude Tools] usage response was not valid JSON', error)
     return { ok: false }
   }
 

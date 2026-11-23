@@ -258,8 +258,8 @@ export function buildWidget(
   refreshButton.title = hint ?? 'Refresh usage'
   refreshButton.addEventListener('click', () => {
     // Gemini only shows its numbers on its Usage page: go there to update.
-    if (hint && location.pathname !== '/usage') location.assign('/usage')
-    else void refreshWidget()
+    if (hint && !isGeminiUsagePath()) location.assign(geminiUsagePath())
+    else void refreshWidget({ force: true })
   })
   head.appendChild(refreshButton)
 
@@ -278,7 +278,25 @@ export function buildWidget(
 
 let resilienceObserverStarted = false
 let resilienceCheckScheduled = false
-let lastPath = location.pathname
+let lastPath = typeof location === 'undefined' ? '' : location.pathname
+
+// When usage can't be shown (logged out, the site gave no numbers, its
+// usage endpoint failed), don't ask again on every page change -- while a
+// reply streams that is about once a second. Try again after this long,
+// or as soon as the person moves to another page.
+const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000
+let lastFailedAt = 0
+
+/** /usage, or /u/1/usage for a second Google account on Gemini. */
+export function isGeminiUsagePath(pathname: string = location.pathname): boolean {
+  return /^(\/u\/\d+)?\/usage\/?$/.test(pathname)
+}
+
+/** Gemini's Usage page for the account this page belongs to. */
+export function geminiUsagePath(pathname: string = location.pathname): string {
+  const account = /^\/u\/\d+/.exec(pathname)?.[0] ?? ''
+  return `${account}/usage`
+}
 
 function scheduleResilienceCheck(): void {
   if (resilienceCheckScheduled) return
@@ -290,32 +308,55 @@ function scheduleResilienceCheck(): void {
     // Gemini: opening its Usage page updates the kept numbers.
     const pathChanged = location.pathname !== lastPath
     lastPath = location.pathname
-    if (location.pathname === '/usage' && usage.refreshHint) {
-      void captureGeminiUsage().then((saved) => {
-        if (saved || pathChanged) void refreshWidget()
+    if (pathChanged) lastFailedAt = 0
+    if (isGeminiUsagePath() && usage.refreshHint) {
+      // Only redraw when the numbers actually changed: redrawing is itself
+      // a page change, which would otherwise schedule this check forever.
+      void captureGeminiUsage().then((changed) => {
+        if (changed || pathChanged) void refreshWidget({ force: true })
       })
       return
     }
     if (document.getElementById(WIDGET_ID)) return
+    if (Date.now() - lastFailedAt < RETRY_AFTER_FAILURE_MS) return
     if (usage.anchor()) void refreshWidget()
   }, 1000)
+}
+
+/** True when every change in this batch is inside the usage box itself
+ * (it redrawing), which needs no check. */
+function onlyOwnChanges(records: MutationRecord[]): boolean {
+  const widget = document.getElementById(WIDGET_ID)
+  return (
+    widget !== null &&
+    records.every((record) => widget.contains(record.target) || [...Array.from(record.addedNodes), ...Array.from(record.removedNodes)].some((n) => n === widget))
+  )
 }
 
 function startResilienceObserver(): void {
   if (resilienceObserverStarted) return
   resilienceObserverStarted = true
-  const observer = new MutationObserver(scheduleResilienceCheck)
+  const observer = new MutationObserver((records) => {
+    if (!onlyOwnChanges(records)) scheduleResilienceCheck()
+  })
   observer.observe(document.body, { childList: true, subtree: true })
 }
 
-export async function refreshWidget(): Promise<void> {
+/** Draws or updates the usage box. `force` is for the person's own
+ * refresh click and for new numbers: it skips the wait after a failure. */
+export async function refreshWidget(options: { force?: boolean } = {}): Promise<void> {
   const usage = siteUsage()
   if (!usage) return
   const anchor = usage.anchor()
   if (!anchor) return
+  if (!options.force && Date.now() - lastFailedAt < RETRY_AFTER_FAILURE_MS) return
 
   const response = await usage.fetch()
-  if (!response.ok || response.usage.meters.length === 0) return
+  if (!response.ok || response.usage.meters.length === 0) {
+    lastFailedAt = Date.now()
+    return
+  }
+  lastFailedAt = 0
 
   ensureStyleInjected()
 

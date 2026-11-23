@@ -144,7 +144,9 @@ export async function checkGithubIssues(token: string, repo: string, fetchImpl: 
         detail:
           visibility === false
             ? `Feedback opens issues in ${repo}. It's a public repository, so anyone on the internet can read them (testers' emails are never included).`
-            : `Feedback opens issues in ${repo} (private).`,
+            : visibility === true
+              ? `Feedback opens issues in ${repo} (private).`
+              : `Feedback opens issues in ${repo}.`,
       }
     }
     const body = (await response.json().catch(() => ({}))) as { message?: unknown }

@@ -488,7 +488,8 @@ function renderPrompts(state: ManageOrgState, context: ManageOrganisationContext
     const name = nameInput.value.trim()
     const promptText = textInput.value.trim()
     if (!name || !promptText) return
-    promptDraft = null
+    // The draft is kept until the save succeeds (clearPromptDraft), so a
+    // failed save leaves everything typed in place.
     const type: 'prompt' | 'skill' = skillRadio.checked ? 'skill' : 'prompt'
     const tabId = selectedTabId || state.orgTabs[0]?.id || ''
     if (state.editingPromptId) {
@@ -642,6 +643,12 @@ function renderUsageSnapshots(state: ManageOrgState): DocumentFragment {
 /** The shared-prompt form's unsaved input, keyed by the prompt being
  * edited ('new' for the add form). Cleared on submit and on Cancel. */
 let promptDraft: { key: string; name: string; text: string; type: 'prompt' | 'skill'; tabId: string } | null = null
+
+/** Called once a shared prompt is saved, and on sign-out / leaving the
+ * organisation, so the next form starts empty. */
+export function clearPromptDraft(): void {
+  promptDraft = null
+}
 
 export function renderManageOrganisation(
   state: ManageOrgState,

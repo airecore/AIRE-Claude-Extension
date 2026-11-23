@@ -143,3 +143,55 @@ test('Copilot shows no usage anywhere, so it gets no box', async ({ context }) =
   await page.waitForTimeout(1500)
   await expect(page.locator('#claude-tools-usage-widget')).toHaveCount(0)
 })
+
+// The usage box must not hammer a site, or the QA dashboard, when it
+// can't show anything -- nor redraw itself in a loop.
+
+test('when usage cannot be loaded, the usage box does not retry on every page change', async ({ context }) => {
+  let usageCalls = 0
+  await context.addCookies([{ name: 'lastActiveOrg', value: 'org-test', domain: 'claude.ai', path: '/' }])
+  await context.route('https://claude.ai/**', (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/usage')) {
+      usageCalls++
+      return route.fulfill({ status: 500, body: 'down' })
+    }
+    return route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><body><nav><div data-testid="sidebar-recents">Recents</div></nav><main id="chat"></main></body>',
+    })
+  })
+  const page = await context.newPage()
+  await page.goto('https://claude.ai/new')
+  // A reply streaming in: the page changes constantly for several seconds.
+  await page.evaluate(() => {
+    let n = 0
+    const timer = setInterval(() => {
+      document.getElementById('chat')!.append(`word ${n++} `)
+      if (n > 40) clearInterval(timer)
+    }, 100)
+  })
+  await page.waitForTimeout(5000)
+  expect(usageCalls).toBeLessThanOrEqual(1)
+})
+
+test("on Gemini's Usage page the box saves the numbers once instead of redrawing in a loop", async ({ context }) => {
+  await context.route('https://gemini.google.com/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><body>
+        <nav><div data-test-id="overflow-container"><expandable-section>Chats</expandable-section></div></nav>
+        <ul aria-label="Usage windows">
+          <li>Current usage\n35% used\nResets at 1:04 PM</li>
+          <li>Weekly limit\nResets Nov 28 at 11:04 AM\n60% used</li>
+        </ul></body>`,
+    }),
+  )
+  const page = await context.newPage()
+  await page.goto('https://gemini.google.com/u/1/usage')
+  const widget = page.locator('#claude-tools-usage-widget')
+  await expect(widget.locator('.ctu-ring')).toHaveCount(2) // works for a second Google account too
+  // Mark the box; a redraw would replace it with a fresh, unmarked one.
+  await widget.evaluate((el) => el.setAttribute('data-test-mark', '1'))
+  await page.waitForTimeout(3500)
+  await expect(page.locator('#claude-tools-usage-widget[data-test-mark="1"]')).toHaveCount(1)
+})

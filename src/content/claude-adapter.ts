@@ -1,5 +1,5 @@
 import type { InsertPromptResponse } from '../shared/messages'
-import { CHAT_SITES, contentSiteForHost } from './site-inputs'
+import { CHAT_SITES, contentSiteForHost, isChatPage } from './site-inputs'
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -31,10 +31,10 @@ export function isInputEmpty(input: Pick<HTMLElement, 'textContent'> & { value?:
 }
 
 // How the chat box is found. Each site's own markers come first
-// (src/shared/sites.ts), then these shared fallbacks. None of the sites
+// (src/content/site-inputs.ts), then these shared fallbacks. None of the sites
 // promise their markup, and it differs between pages and changes over
 // time, so one marker alone is too fragile. Claude and ChatGPT use a
-// ProseMirror contenteditable, Gemini a Quill one, Copilot a textarea.
+// ProseMirror contenteditable, Gemini a Quill one, Copilot a Lexical one.
 const FALLBACK_SELECTORS = [
   '[contenteditable="true"][aria-label*="prompt" i]',
   'fieldset [contenteditable="true"]',
@@ -78,6 +78,7 @@ function editableWithin(el: HTMLElement): HTMLElement | null {
 }
 
 export function findChatInput(root: ParentNode = document): HTMLElement | null {
+  if (!isChatPage()) return null
   for (const selector of chatInputSelectors()) {
     for (const match of Array.from(root.querySelectorAll<HTMLElement>(selector))) {
       const editable = editableWithin(match)
@@ -94,22 +95,60 @@ export function pageKind(pathname: string = location.pathname): string {
   return /^[a-z-]{1,20}$/i.test(first) ? first : 'other'
 }
 
+/** Whitespace-collapsed text, for comparing what a box holds with the prompt. */
+function collapsed(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 /**
- * Types the prompt at the caret. Copilot's editor (Lexical) drops line
+ * Hands the prompt to the chat box. Copilot's editor (Lexical) drops line
  * breaks from typed text but keeps them from a paste, so there the prompt
  * is handed over as a paste; everywhere else it is typed. (Claude and
  * ChatGPT turn long pastes into file attachments, so they must not get one.)
+ *
+ * Returns nothing on purpose: modern editors take over typing and report
+ * it as "not handled" (execCommand returns false, the paste looks
+ * cancelled) even when they insert the text, often a moment later. Whether
+ * it worked is decided by looking at the box afterwards (waitForPrompt).
  */
-function typeText(input: HTMLElement, prompt: string): boolean {
+function handOver(input: HTMLElement, prompt: string): void {
   if (contentSiteForHost(location.hostname)?.id === 'copilot' && input.isContentEditable) {
     const data = new DataTransfer()
     data.setData('text/plain', prompt)
     const paste = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
     input.dispatchEvent(paste)
-    // The editor took it (it cancels the browser's own paste when it does).
-    if (paste.defaultPrevented && !isInputEmpty(input)) return true
+    // The editor took the paste (it cancels the browser's own handling when
+    // it does). Typing as well would put the prompt in twice once its
+    // render lands.
+    if (paste.defaultPrevented) return
   }
-  return document.execCommand('insertText', false, prompt)
+  document.execCommand('insertText', false, prompt)
+}
+
+const VERIFY_TIMEOUT_MS = 1500
+const VERIFY_POLL_MS = 50
+
+/**
+ * Waits until the chat box shows the prompt. Checks the element typed into
+ * and whatever is the chat box now (some sites swap it for a new element
+ * on focus), for up to 1.5s, since editors render on their own schedule.
+ */
+async function waitForPrompt(typedInto: HTMLElement, before: string, prompt: string): Promise<boolean> {
+  const start = collapsed(prompt).slice(0, 40)
+  const deadline = Date.now() + VERIFY_TIMEOUT_MS
+  for (;;) {
+    // Let the editor react first: a box that throws the text away must not
+    // count as success just because it held it for an instant.
+    await sleep(VERIFY_POLL_MS)
+    for (const box of [typedInto, findChatInput()]) {
+      if (!box || !box.isConnected) continue
+      const now = collapsed(inputText(box))
+      // The prompt's opening words are there -- or, if the editor reshapes
+      // text (e.g. turns a /skill into a chip), the box at least changed.
+      if (now && (now.includes(start) || now !== before)) return true
+    }
+    if (Date.now() >= deadline) return false
+  }
 }
 
 export async function insertPrompt(prompt: string): Promise<InsertPromptResponse> {
@@ -124,9 +163,13 @@ export async function insertPrompt(prompt: string): Promise<InsertPromptResponse
     }
   }
 
+  const before = collapsed(inputText(input))
   input.focus()
-  const inserted = typeText(input, prompt)
-  if (!inserted || isInputEmpty(input)) {
+  // Focusing can make the site swap in a new chat box; type into that one.
+  const target = input.isConnected ? input : (findChatInput() ?? input)
+  handOver(target, prompt)
+
+  if (!(await waitForPrompt(target, before, prompt))) {
     console.warn('[Claude Tools] prompt insertion did not take effect')
     return {
       ok: false,

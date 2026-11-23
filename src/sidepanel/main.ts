@@ -59,7 +59,7 @@ import {
   setOrgMemberRole,
   type OrgMember,
 } from '../shared/org-members'
-import type { ManageOrgState } from './ManageOrganisation'
+import { clearPromptDraft, type ManageOrgState } from './ManageOrganisation'
 import { TEAM_RUN_KEY } from './TeamSection'
 import { reportUsage, fetchOrgUsage, type OrgUsageSnapshot } from '../shared/usage-report'
 
@@ -764,6 +764,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         qaTrack('signed_out')
         // Send what's queued while the token is still valid.
         await flushQa()
+        clearPromptDraft()
         await authAdapter.signOut()
         await clearCachedOrgPrompts()
         session = null
@@ -976,7 +977,10 @@ async function refresh(root: HTMLElement): Promise<void> {
       onCreatePrompt: (data) =>
         runOrgWrite(root, async (idToken) => {
           const created = await createOrgPrompt(idToken, data)
-          if (created) qaTrack('org_prompt_created', { type: data.type })
+          if (created) {
+            clearPromptDraft()
+            qaTrack('org_prompt_created', { type: data.type })
+          }
           promptFormError = created
             ? null
             : 'Something went wrong adding that prompt. Check the console for details.'
@@ -984,7 +988,10 @@ async function refresh(root: HTMLElement): Promise<void> {
       onUpdatePrompt: (id, data) =>
         runOrgWrite(root, async (idToken) => {
           const updated = await updateOrgPrompt(idToken, id, data)
-          if (updated) qaTrack('org_prompt_edited', { type: data.type })
+          if (updated) {
+            clearPromptDraft()
+            qaTrack('org_prompt_edited', { type: data.type })
+          }
           if (updated) editingPromptId = null
           promptFormError = updated
             ? null

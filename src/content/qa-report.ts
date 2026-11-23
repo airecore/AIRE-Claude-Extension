@@ -1,14 +1,15 @@
-// Tester build defect capture for the content script on claude.ai.
+// Tester build defect capture for the content script on the chat sites
+// (Claude, ChatGPT, Copilot, Gemini).
 //
 // Deliberately imports nothing at runtime (types only): sharing a module
 // with the side panel would make Vite split the content script into a
-// loader plus chunks, which claude.ai would then have to fetch as web-
-// accessible resources. Instead this forwards each defect to the service
-// worker as a QA_REPORT message, and the worker queues it with the shared
-// logger (src/shared/qa/logger.ts).
+// loader plus chunks, which the chat sites would then have to fetch as
+// web-accessible resources. Instead this forwards each defect to the
+// service worker as a QA_REPORT message, and the worker queues it with the
+// shared logger (src/shared/qa/logger.ts).
 //
-// Only errors whose stack points into the extension are forwarded, so
-// claude.ai's own page errors are never recorded.
+// Only errors whose stack points into the extension are forwarded, so the
+// sites' own page errors are never recorded.
 
 import type { QaReportMessage } from '../shared/messages'
 
@@ -34,6 +35,11 @@ function send(name: string, message: string, stack: string | undefined, props?: 
 function describe(value: unknown): { message: string; stack: string | undefined } {
   if (value instanceof Error) return { message: `${value.name}: ${value.message}`, stack: value.stack }
   if (typeof value === 'string') return { message: value, stack: undefined }
+  // Numbers (e.g. an HTTP status) and the like are safe and useful; objects
+  // could hold page data, so they're never recorded.
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) {
+    return { message: String(value), stack: undefined }
+  }
   return { message: '[object]', stack: undefined }
 }
 
