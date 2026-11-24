@@ -1,4 +1,5 @@
 import type { InsertPromptRequest, InsertPromptResponse } from './messages'
+import { siteForUrl } from './sites'
 
 // Sends a prompt to the extension's script inside an AI chat tab.
 //
@@ -46,4 +47,24 @@ export async function sendToChatTab(tabId: number, request: InsertPromptRequest)
     console.error('[Claude Tools] content script still unreachable after adding it to the tab', error)
     return { ok: false, reason: 'unreachable' }
   }
+}
+
+/**
+ * The tab prompts go to. In the side panel that's the active tab of its
+ * window. The panel can also be opened as an ordinary tab (its page is
+ * chrome-extension://<id>/src/sidepanel/index.html) -- handy as a pop-out,
+ * and the only way browser-automation tools such as Claude in Chrome can
+ * reach it. There the active tab is the panel itself, so prompts go to the
+ * chat tab used most recently instead.
+ */
+export async function targetChatTab(): Promise<chrome.tabs.Tab | undefined> {
+  const self = await chrome.tabs.getCurrent()
+  if (!self) {
+    const [active] = await chrome.tabs.query({ active: true, currentWindow: true })
+    return active
+  }
+  const tabs = await chrome.tabs.query({})
+  return tabs
+    .filter((tab) => tab.id !== self.id && siteForUrl(tab.url) !== null)
+    .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))[0]
 }

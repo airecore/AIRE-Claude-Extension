@@ -3,7 +3,7 @@ import { QA_ENABLED, buildLabel } from '../shared/qa/config'
 import { sendFeedback, type FeedbackInput } from '../shared/qa/feedback'
 import type { FeedbackState } from './FeedbackForm'
 import { ToolService } from '../shared/tool-service'
-import { sendToChatTab } from '../shared/chat-tab'
+import { sendToChatTab, targetChatTab } from '../shared/chat-tab'
 import { SITE_NAMES_TEXT, siteForUrl } from '../shared/sites'
 
 const OPEN_A_CHAT_SITE = `Open ${SITE_NAMES_TEXT} to use this prompt.`
@@ -294,7 +294,7 @@ async function reportCurrentUsage(): Promise<void> {
   const idToken = await authAdapter.getValidToken()
   if (!idToken) return
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const tab = await targetChatTab()
     // Only a chat-site tab has the content script that answers GET_USAGE.
     // Anything else (or a tab opened before the last extension reload)
     // just has no receiver -- skip quietly, this is a background poll.
@@ -402,7 +402,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         if (view.mode === 'list') await refresh(root)
 
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+          const tab = await targetChatTab()
           if (!tab?.id || !siteForUrl(tab.url)) {
             console.warn('[Claude Tools] the active tab is not a supported chat site')
             runState.set(button.id, { isRunning: false, error: OPEN_A_CHAT_SITE })
@@ -1081,7 +1081,7 @@ async function refresh(root: HTMLElement): Promise<void> {
         }
         try {
           try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+            const tab = await targetChatTab()
             if (!tab?.id || !siteForUrl(tab.url)) {
               fail(OPEN_A_CHAT_SITE)
               return
